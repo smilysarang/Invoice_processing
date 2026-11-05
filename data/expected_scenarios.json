@@ -1,0 +1,135 @@
+{
+  "01_happy_apex_itemized.pdf": {
+    "decision": "AUTO_APPROVE"
+  },
+  "02_happy_bluewave_bundled.pdf": {
+    "decision": "AUTO_APPROVE",
+    "reasons_include": [
+      "BUNDLED_TOTAL_MATCH"
+    ]
+  },
+  "03_happy_scanned_northstar.pdf": {
+    "decision": "AUTO_APPROVE"
+  },
+  "04_ec1a_no_po_single_candidate.pdf": {
+    "decision": "AUTO_APPROVE",
+    "reasons_include": [
+      "PO_INFERRED"
+    ]
+  },
+  "05_ec1b_no_po_ambiguous.pdf": {
+    "decision": "HOLD_FOR_REVIEW",
+    "reasons_include": [
+      "PO_AMBIGUOUS"
+    ]
+  },
+  "06_ec2a_exact_resend.pdf": {
+    "decision": "REJECT_DUPLICATE",
+    "reasons_include": [
+      "DUP_EXACT_FILE"
+    ]
+  },
+  "07_ec2b_rescan_of_paid_invoice.pdf": {
+    "decision": "REJECT_DUPLICATE",
+    "reasons_include": [
+      "DUP_EXACT_BUSINESS_KEY"
+    ]
+  },
+  "08_ec2c_corrected_reissue.pdf": {
+    "decision": "HOLD_FOR_REVIEW",
+    "reasons_include": [
+      "DUP_POSSIBLE_REISSUE"
+    ]
+  },
+  "09_ec2d_credit_rebill.pdf": {
+    "decision": "AUTO_APPROVE",
+    "reasons_include": [
+      "CREDIT_REBILL_EVIDENCED"
+    ]
+  },
+  "10_ec2e_recurring_retainer.pdf": {
+    "decision": "AUTO_APPROVE",
+    "reasons_include": [
+      "RECURRING_PATTERN"
+    ]
+  },
+  "11_ec3_bank_change.pdf": {
+    "decision": "HOLD_FOR_REVIEW",
+    "reasons_include": [
+      "BANK_MISMATCH_HIGH_RISK"
+    ]
+  },
+  "12_ec4a_kraftwerk_german.pdf": {
+    "decision": "AUTO_APPROVE"
+  },
+  "13_ec4b_ambiguous_date.pdf": {
+    "decision": "HOLD_FOR_REVIEW",
+    "reasons_include": [
+      "AMBIGUOUS_DATE"
+    ]
+  },
+  "14_split_ok_A.pdf": {
+    "decision": "AUTO_APPROVE",
+    "batch": "split_ok"
+  },
+  "15_split_ok_B.pdf": {
+    "decision": "AUTO_APPROVE",
+    "batch": "split_ok"
+  },
+  "16_split_ok_C.pdf": {
+    "decision": "AUTO_APPROVE",
+    "batch": "split_ok"
+  },
+  "17_split_bad_A.pdf": {
+    "decision": "HOLD_FOR_REVIEW",
+    "batch": "split_bad",
+    "reasons_include": [
+      "GROUP_DISCREPANCY"
+    ]
+  },
+  "18_split_bad_B.pdf": {
+    "decision": "HOLD_FOR_REVIEW",
+    "batch": "split_bad",
+    "reasons_include": [
+      "GROUP_DISCREPANCY"
+    ]
+  },
+  "19_split_bad_C.pdf": {
+    "decision": "HOLD_FOR_REVIEW",
+    "batch": "split_bad",
+    "reasons_include": [
+      "GROUP_DISCREPANCY"
+    ]
+  },
+  "20_bonus_injection_inactive_vendor.pdf": {
+    "decision": "HOLD_FOR_REVIEW",
+    "reasons_include": [
+      "PROMPT_INJECTION_SUSPECTED",
+      "VENDOR_NOT_APPROVED"
+    ]
+  },
+  "21_invalid_statement_not_invoice.pdf": {
+    "decision": "REJECT_INVALID",
+    "reasons_include": [
+      "DOC_OUT_OF_SCOPE"
+    ]
+  },
+  "22_invalid_corrupt.pdf": {
+    "decision": "REJECT_INVALID",
+    "reasons_include": [
+      "INTAKE_CORRUPT"
+    ]
+  },
+  "23_invalid_png_renamed.pdf": {
+    "decision": "REJECT_INVALID",
+    "reasons_include": [
+      "INTAKE_FILE_TYPE"
+    ]
+  },
+  "24_missing_invoice_number.pdf": {
+    "decision": "HOLD_FOR_REVIEW",
+    "reasons_include": [
+      "MISSING_REQUIRED_FIELD"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+vendor_id,name,aliases,status,approved,tax_id,country,allowed_currencies,bank_account,contact_ref,address
+V001,Apex Office Supplies Pvt Ltd,Apex Office Supplies|Apex Office,ACTIVE,true,29APXOS1234F1Z5,IN,INR,50100012345678,Registered: accounts@apex-office.example / +91-80-5550-0101 (verified 2024-03-02),"12 Residency Road, Bengaluru 560025"
+V002,Bluewave IT Services LLP,Bluewave IT Services|Bluewave IT,ACTIVE,true,27BLWIT5678K1Z2,IN,INR,912020034567890,Registered: finance@bluewave.example / +91-20-5550-0202 (verified 2025-01-11),"Tower B, Hinjewadi Phase 2, Pune 411057"
+V003,Kraftwerk Industrietechnik GmbH,Kraftwerk Industrietechnik|Kraftwerk GmbH,ACTIVE,true,DE298765432,DE,EUR,DE44500105175407324931,Registered: buchhaltung@kraftwerk-it.example / +49-711-555-0303 (verified 2025-06-20),"Industriestrasse 7, 70565 Stuttgart, Deutschland"
+V004,Northstar Logistics Pvt Ltd,Northstar Logistics|Northstar,ACTIVE,true,33NSTLG9012M1Z8,IN,INR,00601400012345,Registered: billing@northstar-log.example / +91-44-5550-0404 (verified 2024-11-05),"Plot 88, SIPCOT Industrial Park, Chennai 602105"
+V005,Shadow Supplies Co,Shadow Supplies,INACTIVE,false,29SHDWS0000A1Z1,IN,INR,11112222333344,Vendor deactivated 2026-06-30 (failed re-verification),"Unit 4, Peenya, Bengaluru 560058"
+V006,Sahyadri Packaging Industries,Sahyadri Packaging,ACTIVE,true,27SHYPK3456P1Z4,IN,INR,32001500098765,Registered: sales@sahyadri-pack.example / +91-20-5550-0606 (verified 2025-08-14),"Gat No. 112, Chakan MIDC, Pune 410501"
+V007,Lumen Analytics Inc,Lumen Analytics,ACTIVE,true,84-1234567,US,USD,000123456789,Registered: ar@lumen-analytics.example / +1-415-555-0707 (verified 2026-01-09),"500 Example Street, Suite 300, Wilmington DE 19801, USA"

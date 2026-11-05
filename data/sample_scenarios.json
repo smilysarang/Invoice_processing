@@ -1,0 +1,141 @@
+[
+  {
+    "id": "happy_itemized",
+    "title": "Happy path - clean itemised invoice",
+    "files": [
+      "01_happy_apex_itemized.pdf"
+    ],
+    "about": "Native-text PDF, CGST/SGST, Indian lakh formatting, bank details on page 2."
+  },
+  {
+    "id": "happy_bundled",
+    "title": "Happy path - bundled, tax-inclusive, different layout",
+    "files": [
+      "02_happy_bluewave_bundled.pdf"
+    ],
+    "about": "Single bundled line against a 3-line PO; GST included in prices."
+  },
+  {
+    "id": "happy_scanned",
+    "title": "Happy path - scanned invoice (OCR)",
+    "files": [
+      "03_happy_scanned_northstar.pdf"
+    ],
+    "about": "Image-only PDF, slightly rotated with noise; no text layer."
+  },
+  {
+    "id": "ec1a",
+    "title": "EC1 - No PO number, one strong candidate",
+    "files": [
+      "04_ec1a_no_po_single_candidate.pdf"
+    ],
+    "about": "Vendor wrote 'Your order dated 09 Oct 2026' instead of a PO number."
+  },
+  {
+    "id": "ec1b",
+    "title": "EC1 - No PO number, ambiguous candidates",
+    "files": [
+      "05_ec1b_no_po_ambiguous.pdf"
+    ],
+    "about": "'As discussed with Maria' - two open POs look identical."
+  },
+  {
+    "id": "ec2",
+    "title": "EC2 - Duplicates & look-alikes (4 variants)",
+    "files": [
+      "06_ec2a_exact_resend.pdf",
+      "07_ec2b_rescan_of_paid_invoice.pdf",
+      "08_ec2c_corrected_reissue.pdf",
+      "09_ec2d_credit_rebill.pdf",
+      "10_ec2e_recurring_retainer.pdf"
+    ],
+    "about": "Exact resend, re-scan, corrected reissue, credit-and-rebill, legitimate monthly retainer."
+  },
+  {
+    "id": "ec3",
+    "title": "EC3 - Bank details changed, everything else perfect",
+    "files": [
+      "11_ec3_bank_change.pdf"
+    ],
+    "about": "Clean invoice, exact PO match - but a new bank account."
+  },
+  {
+    "id": "ec4a",
+    "title": "EC4 - German invoice (1.234,56 and dd.mm.yyyy)",
+    "files": [
+      "12_ec4a_kraftwerk_german.pdf"
+    ],
+    "about": "German labels, comma decimals, EUR, IBAN."
+  },
+  {
+    "id": "ec4b",
+    "title": "EC4 - Ambiguous date (07/10/2026)",
+    "files": [
+      "13_ec4b_ambiguous_date.pdf"
+    ],
+    "about": "US vendor, slash date with no locale evidence."
+  },
+  {
+    "id": "split_ok",
+    "title": "Split PO - valid 3-invoice set (all-or-none)",
+    "files": [
+      "14_split_ok_A.pdf",
+      "15_split_ok_B.pdf",
+      "16_split_ok_C.pdf"
+    ],
+    "about": "Three partial invoices that together exactly match PO-2001."
+  },
+  {
+    "id": "split_bad",
+    "title": "Split PO - failing 3-invoice set",
+    "files": [
+      "17_split_bad_A.pdf",
+      "18_split_bad_B.pdf",
+      "19_split_bad_C.pdf"
+    ],
+    "about": "One invoice short-ships a monitor, another bills keyboards at the wrong price."
+  },
+  {
+    "id": "split_step1",
+    "title": "Split PO - later session, step 1 (upload 2 of 3)",
+    "files": [
+      "14_split_ok_A.pdf",
+      "15_split_ok_B.pdf"
+    ],
+    "about": "Group stays pending; nothing consumed."
+  },
+  {
+    "id": "split_step2",
+    "title": "Split PO - later session, step 2 (upload the 3rd)",
+    "files": [
+      "16_split_ok_C.pdf"
+    ],
+    "about": "Whole group is re-reconciled and accepted together."
+  },
+  {
+    "id": "bonus_injection",
+    "title": "Bonus - prompt injection + inactive vendor",
+    "files": [
+      "20_bonus_injection_inactive_vendor.pdf"
+    ],
+    "about": "Invoice text tells the 'AI system' to approve it."
+  },
+  {
+    "id": "missing",
+    "title": "Missing invoice number",
+    "files": [
+      "24_missing_invoice_number.pdf"
+    ],
+    "about": "Critical field absent - must not be invented."
+  },
+  {
+    "id": "invalid",
+    "title": "Invalid documents (statement, corrupt, renamed PNG)",
+    "files": [
+      "21_invalid_statement_not_invoice.pdf",
+      "22_invalid_corrupt.pdf",
+      "23_invalid_png_renamed.pdf"
+    ],
+    "about": "Out of scope / unreadable inputs."
+  }
+]

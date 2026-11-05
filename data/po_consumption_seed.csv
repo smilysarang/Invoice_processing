@@ -1,0 +1,3 @@
+po_number,item_code,quantity,amount,source,idempotency_key
+PO-1002,TNR-85A,20,50000.00,H-0001,seed:H-0001
+PO-3010,BW-MSP-RET,6,900000.00,Apr-Sep 2026 retainers,seed:PO-3010-apr-sep

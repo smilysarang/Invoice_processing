@@ -1,0 +1,7 @@
+# Demo tolerance configuration (sample values - tune per company policy)
+tolerance_version: "1.0.0"
+invoice_arithmetic_abs: "1.00"   # rounding allowed inside one invoice (line sums, subtotal+tax=total)
+tax_abs: "1.00"                  # allowed difference between printed tax and subtotal x PO tax rate
+line_unit_price_pct: "0.0"       # unit price must equal the PO unit price
+po_group_abs: "0.01"             # all-or-none split-PO reconciliation: currency rounding only
+blanket_amount_pct: "0.0"        # blanket/recurring POs: invoice may not exceed remaining value

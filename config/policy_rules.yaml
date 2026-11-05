@@ -1,0 +1,31 @@
+# Versioned AP policy. The policy engine is the single source of truth for the final decision.
+policy_version: "1.0.0"
+
+required_fields: [supplier_name, invoice_number, invoice_date, currency, grand_total]
+
+# Findings whose FAIL maps to a specific terminal decision (everything else with severity ERROR -> HOLD_FOR_REVIEW)
+reject_invalid_rules: [INTAKE_FILE_TYPE, INTAKE_CORRUPT, INTAKE_ENCRYPTED, INTAKE_LIMITS, DOC_OUT_OF_SCOPE, TEXT_UNREADABLE]
+reject_duplicate_rules: [DUP_EXACT_FILE, DUP_EXACT_BUSINESS_KEY]
+pending_rules: [GROUP_INCOMPLETE]
+
+po_inference:
+  # When no PO number is printed, a single strong candidate may be proposed.
+  # true  -> AUTO_APPROVE allowed (with PO_INFERRED warning) if the invoice alone fully reconciles to that PO
+  # false -> always HOLD_FOR_REVIEW with the proposed PO pre-filled for the reviewer
+  allow_auto_approve_inferred_po: true
+  strong_score: 0.85
+  plausible_score: 0.55
+  ambiguity_margin: 0.10
+
+confidence:
+  ocr_min_field_confidence: 0.80
+  grounding_min_score: 90
+
+duplicates:
+  near_amount_pct: 1.0
+  near_window_days: 45
+  invoice_number_similarity: 90
+
+agents:
+  # Agents may make a decision MORE conservative (escalate to review), never less.
+  escalate_only: true
