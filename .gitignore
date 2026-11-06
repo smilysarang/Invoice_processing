@@ -4,3 +4,4 @@ __pycache__/
 .env
 storage/
 .pytest_cache/
+DEMO_SCRIPT.md
