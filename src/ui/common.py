@@ -84,7 +84,7 @@ def sidebar():
         st.markdown("### ⚙️ Processing mode")
         cur = current_mode()
         choice = st.radio("Agents run as", ["deterministic_demo", "live_llm"], index=0 if cur == "deterministic_demo" else 1,
-                          format_func=lambda m: "Deterministic demo (no LLM)" if m == "deterministic_demo" else "Live LLM agents (Gemini)",
+                          format_func=lambda m: "Deterministic demo (no LLM)" if m == "deterministic_demo" else f"Live LLM agents ({os.environ.get('LLM_PROVIDER', 'gemini')})",
                           key="mode_radio")
         st.session_state.mode = choice
         mode_badge(compact=True)

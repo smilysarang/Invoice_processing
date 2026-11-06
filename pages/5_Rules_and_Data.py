@@ -42,12 +42,12 @@ with t3:
             st.error(perr)
         else:
             st.success(f"Provider ready: {p.name} / {p.model}")
-            if st.button("List available Gemini models (verifies key + model ID)"):
+            if st.button("List available models (verifies key + model ID)"):
                 try:
                     models = p.list_models()
                     st.write(f"{len(models)} models. Configured model present: "
                              f"{'✅' if any(m.endswith(p.model) for m in models) else '⛔ NOT FOUND - set GEMINI_MODEL'}")
-                    st.code("\n".join(m for m in models if "gemini" in m))
+                    st.code("\n".join(sorted(m for m in models if m)))
                 except Exception as e:
                     st.error(f"{type(e).__name__}: {e}")
     st.info("Free-tier cloud APIs may use submitted content to improve the provider's products: use synthetic invoices only.")

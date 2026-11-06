@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Optional
 
 from pydantic import BaseModel
@@ -41,6 +42,7 @@ LABELS = {
     "INTAKE_FILE_TYPE": "the file is not really a PDF",
     "TAX_RATE_CHECK": "tax does not match the PO tax rate",
     "TOTAL_RECONCILIATION": "the invoice totals do not add up",
+    "LINES_SUM_RECONCILIATION": "the line items do not add up to the invoice total",
     "EXTRACTION_DISAGREEMENT": "the two independent readings of the document disagree",
     "AGENT_RISK_ESCALATION": "an AI agent raised an additional risk",
     "AGENT_POLICY_CONFLICT": "AI agent and rules disagree on the PO",
@@ -71,7 +73,8 @@ Write for a non-technical AP reviewer:
 - vendor_message_draft: ONLY if the vendor must supply or correct something; a short polite draft (it is never sent automatically).
   For bank-detail changes, do NOT ask the vendor to confirm by replying; say the company will call the contact already on file.
 - decision_echo: must be exactly the decision string you were given.
-State that no payment has been made. Do not include full bank account numbers."""
+State that no payment has been made. Never write "approved for payment" or "paid": AUTO_APPROVE only means the invoice is
+ready for the company's next approval/payment step. Do not include full bank account numbers."""
 
 
 def template(ctx) -> dict:
@@ -129,7 +132,7 @@ class ExplanationAgent(Agent):
                    "warnings": [f["message"] for f in ctx["findings"] if f.get("status") == "WARN"][:5],
                    "passed_checks": [f["rule_id"] for f in ctx["findings"] if f.get("status") == "PASS"],
                    "po_group": ctx.get("group_summary")}
-        return "Explain this final decision.\n" + json.dumps(payload, default=str, indent=1), []
+        return "Explain this final decision.\n" + json.dumps(payload, default=str, separators=(",", ":")), []
 
     def deterministic(self, ctx):
         return template(ctx)
@@ -138,6 +141,8 @@ class ExplanationAgent(Agent):
         dec = ctx["decision"]["decision"]
         out = parsed.model_dump()
         out["source"] = "live LLM"
+        if re.search(r"approved for payment|\bpaid\b|payment (has been )?(made|released|processed)", parsed.headline, re.I):
+            out["headline"] = HEADLINES[dec]          # headline must not overstate what happened
         if parsed.decision_echo.strip() != dec:
             t = template(ctx)
             t["source"] = f"template - LLM explanation rejected (it said '{parsed.decision_echo}', policy decided '{dec}')"

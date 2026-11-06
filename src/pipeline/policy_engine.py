@@ -33,6 +33,7 @@ NEXT_ACTIONS = {
     "TAX_RATE_CHECK": "Tax does not match the PO tax treatment - request a corrected invoice.",
     "TOTAL_RECONCILIATION": "Invoice totals do not add up - request a corrected invoice.",
     "LINE_ARITHMETIC": "Line amounts do not add up - request a corrected invoice.",
+    "LINES_SUM_RECONCILIATION": "The line items do not add up to the invoice subtotal/total - check the PDF and request a corrected invoice if confirmed.",
     "EXTRACTION_DISAGREEMENT": "The two extraction passes disagree - check the highlighted field against the PDF.",
     "AGENT_RISK_ESCALATION": "An AI agent raised a risk the rules did not - review its evidence.",
     "AGENT_POLICY_CONFLICT": "AI agent and deterministic matching disagree - review the match.",
@@ -53,10 +54,10 @@ def decide(findings: list[dict], group: Optional[dict] = None, document_id: Opti
         if st == "BLOCKED" and not is_blocker:
             findings.append({"rule_id": "GROUP_BLOCKED_BY_MEMBER", "severity": "ERROR", "status": "FAIL",
                              "message": f"PO group {group['group_id']} is blocked by: {', '.join(group['blocking_members'])}."})
-        elif st == "DISCREPANCY":
+        if group["discrepancies"]:   # always surface what does not reconcile, even if the group is also blocked
             findings.append({"rule_id": "GROUP_DISCREPANCY", "severity": "ERROR", "status": "FAIL",
                              "message": "; ".join(group["discrepancies"])})
-        elif st == "INCOMPLETE":
+        if st == "INCOMPLETE":
             findings.append({"rule_id": "GROUP_INCOMPLETE", "severity": "ERROR", "status": "FAIL",
                              "message": "; ".join(group["still_needed"])})
         elif st == "ACCEPTED" and len(group["members"]) > 1:

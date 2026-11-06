@@ -12,7 +12,7 @@ from src.agents.providers.base import ImagePart, LLMProvider, ProviderError
 from src.models import AgentTrace
 from src.storage import now
 
-FATAL_KINDS = {"AUTH", "CONFIG", "MODEL_NOT_FOUND"}
+FATAL_KINDS = {"AUTH", "CONFIG", "MODEL_NOT_FOUND", "DAILY_QUOTA_EXHAUSTED"}
 
 
 class Agent:

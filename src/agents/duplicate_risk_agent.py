@@ -63,7 +63,7 @@ class DuplicateRiskAgent(Agent):
                    "vendor_history": vend_hist,
                    "risk_checks": [{"rule": f["rule_id"], "status": f["status"], "message": f["message"]} for f in ctx["risk_findings"]],
                    "instruction_like_text_in_document": inv.injection_hits}
-        return "Investigate duplicates and payment risk.\n" + json.dumps(payload, default=str, indent=1), []
+        return "Investigate duplicates and payment risk.\n" + json.dumps(payload, default=str, separators=(",", ":")), []
 
     def deterministic(self, ctx):
         dup = ctx["dup"]

@@ -26,24 +26,33 @@ streamlit run Home.py                 # opens http://localhost:8501
 
 The app starts in **deterministic demo mode**, which needs no API key and makes no LLM calls. OCR (RapidOCR / ONNX) installs with pip, so there are no system binaries to set up. If OCR is missing, scanned invoices are held with `OCR_UNAVAILABLE` instead of crashing.
 
-### Live LLM mode (Gemini free tier)
+### Live LLM mode (choose a provider)
 
-1. Get a key at https://aistudio.google.com/apikey.
-2. `copy .env.example .env` and set `GEMINI_API_KEY=...`. Optionally set `GEMINI_MODEL` (default `gemini-3.8-flash`).
-3. `python scripts/check_gemini.py` checks the key and the model ID, then makes one structured call.
-4. In the app sidebar, choose **Live LLM agents (Gemini)**. The badge then shows `LIVE LLM · gemini · <model>`.
+The four agents talk to one provider, chosen explicitly with `LLM_PROVIDER` in `.env`; it is never switched automatically.
 
-In live mode, **each of the four agents makes its own Gemini call**, with its own system prompt, JSON schema and read-only context. Every call is traced with provider, model, latency, tokens, request ID, tool calls, retries and errors (see the **Invoice Review → Agents** tab).
+| `LLM_PROVIDER` | Cost / limits | Setup |
+|---|---|---|
+| `gemini` | Free tier, about **20 requests/day per model** (~5 live invoices). Each model has its own counter. | Key: https://aistudio.google.com/apikey · `GEMINI_API_KEY`, `GEMINI_MODEL` |
+| `groq` | Free tier, OpenAI-compatible, very fast, much higher daily limits | Key: https://console.groq.com/keys · `GROQ_API_KEY`, `GROQ_MODEL` (default `openai/gpt-oss-120b`; `python scripts/check_llm.py` lists what your key can use) |
+| `openrouter` | Free `:free` model variants, small daily limit without credits | Key: https://openrouter.ai/keys · `OPENROUTER_API_KEY`, `OPENROUTER_MODEL=<id>:free` |
+| `ollama` | Local, no key, no quota (needs RAM/GPU) | Install Ollama, `ollama pull qwen2.5:7b` · `OLLAMA_MODEL` |
+| `openai_compat` | Any other OpenAI-compatible endpoint | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` |
 
-If the key is missing, the quota is exhausted or the model is not found, the error is **shown**. The run never silently falls back to demo mode: an invoice whose live agent failed is held with `AGENT_UNAVAILABLE`.
+1. `copy .env.example .env`, set `LLM_PROVIDER` and that provider's key and model.
+2. `python scripts/check_llm.py` checks the key and the model ID, then makes one structured call.
+3. In the app sidebar, choose **Live LLM agents**. The badge then shows `LIVE LLM · <provider> · <model>`.
 
-> ⚠️ **Privacy:** content sent through Gemini's free tier may be used to improve Google's products. Use the synthetic invoices only. Never send real vendor invoices, tax IDs or bank details.
-> Free-tier rate limits apply: the app spaces calls (`LLM_MIN_INTERVAL_SECONDS=4`), so a 3-invoice batch (12 calls) takes about a minute.
+In live mode, **each of the four agents makes its own LLM call**, with its own system prompt, JSON schema and read-only context. Gemini uses native structured output; the OpenAI-compatible adapter uses JSON mode plus the schema, and Pydantic validates the result (invalid output is retried once, then reported). Every call is traced with provider, model, latency, tokens, request ID, tool calls, retries and errors (see the **Invoice Review → Agents** tab).
+
+If the key is missing, the quota is exhausted or the model is not found, the error is **shown**. The run never silently falls back to demo mode or to another provider: an invoice whose live agent failed is held with `AGENT_UNAVAILABLE`. A daily-quota error fails fast and skips the remaining agent calls for that batch instead of waiting.
+
+> ⚠️ **Privacy:** free-tier cloud APIs may use submitted content to improve their products. Use the synthetic invoices only. Never send real vendor invoices, tax IDs or bank details.
+> Calls are spaced by `LLM_MIN_INTERVAL_SECONDS` (Gemini free: 8 s; Groq: 2 s; Ollama: 0). Each invoice uses 4 calls.
 
 ### Tests and scenario harness
 
 ```bash
-pytest -q                               # 27 offline tests (mock provider, no network); 1 opt-in live smoke test
+pytest -q                               # 32 offline tests (mock provider, no network); 1 opt-in live smoke test
 python scripts/run_demo.py --check      # runs all 24 fixtures through the real pipeline, compares with expected outcomes
 python scripts/run_demo.py --later-session   # split PO: 2 invoices now (pending) -> 3rd later -> all approved together
 python scripts/run_demo.py --scenario ec3 -v # one scenario, stage by stage
@@ -128,7 +137,7 @@ src/orchestrator.py        runs stages, emits live events, batch-level group rec
 src/storage.py             SQLite: documents, decisions (versioned), history, po_groups, po_consumption, traces, audit
 config/                    policy_rules.yaml, tolerance_rules.yaml (versioned)
 data/                      vendors, POs, PO lines, history + ledger seeds, 24 invoice PDFs, scenarios
-scripts/                   generate_fixtures.py, run_demo.py, check_gemini.py
+scripts/                   generate_fixtures.py, run_demo.py, check_llm.py
 tests/                     normalisation, end-to-end scenarios, agent/provider behaviour
 ```
 
@@ -154,7 +163,7 @@ Every page is stamped *SYNTHETIC DEMO DATA - NOT A REAL INVOICE*. The data uses 
 
 ## Known limitations and next steps
 
-- **Provider:** only Gemini is implemented behind the provider interface. Ollama, OpenRouter and Anthropic adapters are next.
+- **Providers:** Gemini (native SDK) plus one OpenAI-compatible adapter (Groq, OpenRouter, Ollama, any compatible endpoint). Gemini and Groq (gpt-oss-120b / gpt-oss-20b) were exercised live in development; OpenRouter and Ollama are covered only by mocked-HTTP tests. Groq free tier: 8,000 tokens/min and 200,000 tokens/day per model (~9k tokens per invoice), so the adapter paces calls from the rate-limit headers. A paid Anthropic adapter would be a small addition.
 - **Tools:** agents get pre-fetched read-only tool results rather than a function-calling loop. This is cheaper on the free tier and fully traced. A function-calling loop is a straightforward extension.
 - **Extraction:** the rule extractor is tuned to common label vocabularies (EN/DE). Real vendor diversity would lean more on Agent 1 plus feedback-driven evaluation sets.
 - **Locales:** right-to-left and Indic scripts are covered at the normalisation level (Devanagari and Arabic-Indic digits are unit-tested), but there are no Arabic or Hindi PDF fixtures.

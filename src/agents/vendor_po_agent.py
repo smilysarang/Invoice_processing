@@ -7,6 +7,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from src.agents.base import UNTRUSTED_NOTE, Agent, finding
+from src.master_data import purchase_orders
 
 
 class POCandidateView(BaseModel):
@@ -29,8 +30,12 @@ You receive an extracted invoice summary plus READ-ONLY results of the tools loo
 (deterministic feature scores are included). Your job:
 - Judge whether the supplier identity on the invoice is consistent with the vendor master record.
 - Judge which PO candidates are plausible and why (item codes, descriptions, quantities, prices, amount, dates, references).
-- Set selected_po ONLY if exactly one candidate is clearly supported by the evidence. If two or more remain plausible,
-  set ambiguous=true, selected_po=null, and list the questions a human must answer.
+- selected_po answers ONE question: WHICH purchase order does this invoice belong to? If the printed PO number exists for
+  this vendor, or exactly one candidate is clearly supported, select it - even if amounts, prices or quantities differ.
+  Report such differences in questions_for_human instead; deterministic code reconciles amounts, tax and split invoices.
+- If two or more POs remain plausible, set ambiguous=true, selected_po=null, and list the questions a human must answer.
+- Amounts: line prices are NET of tax; grand_total_incl_tax = invoice_net_subtotal + tax_total (tax rate per the PO).
+  A ONE_TIME PO may be billed in several partial invoices that code reconciles as a group, so a partial amount is normal.
 - You cannot create or edit vendors or POs, change PO values, or waive tolerances. You do not approve payments.
 {UNTRUSTED_NOTE}"""
 
@@ -39,7 +44,8 @@ def _summary(inv) -> dict:
     v = lambda k: inv.val(k)
     return {"supplier_name": v("supplier_name"), "supplier_tax_id": v("supplier_tax_id"), "invoice_number": v("invoice_number"),
             "invoice_date": v("invoice_date"), "po_number_printed": v("po_number"), "order_reference_text": inv.order_reference_text,
-            "currency": v("currency"), "grand_total": v("grand_total"),
+            "currency": v("currency"), "grand_total_incl_tax": v("grand_total"), "tax_total": v("tax_total"),
+            "tax_inclusive_prices": inv.tax_inclusive,
             "lines": [{"item_code": l.item_code, "description": l.description, "qty": l.quantity, "uom": l.uom,
                        "net_unit_price": l.net_unit_price} for l in inv.lines]}
 
@@ -58,15 +64,27 @@ class VendorPOAgent(Agent):
 
     def build_input(self, ctx):
         vm, pm = ctx["vendor_match"], ctx["po_match"]
+        pos = purchase_orders()
+
+        def po_facts(n):
+            po = pos.get(n)
+            if not po:
+                return {"po_number": n}
+            return {"po_number": n, "billing_type": po.billing_type, "tax_rate": str(po.tax_rate), "currency": po.currency,
+                    "po_net_subtotal": str(po.subtotal), "po_total_incl_tax": str(po.grand_total),
+                    "lines": [{"item_code": l.item_code, "qty": str(l.quantity), "unit_price": str(l.unit_price)} for l in po.lines]}
+        ids = [c["po_number"] for c in pm["candidates"]] or ([pm["selected_po"]] if pm["selected_po"] else [])
         vendor = dict(vm["vendor"] or {})
         if vendor.get("bank_account"):
             vendor["bank_account"] = "(masked)"
-        payload = {"invoice": _summary(ctx["inv"]), "lookup_vendor": {"vendor": vendor, "match_method": vm["method"]},
+        summary = _summary(ctx["inv"])
+        summary["invoice_net_subtotal"] = (ctx.get("calc") or {}).get("net_subtotal")
+        payload = {"invoice": summary, "lookup_vendor": {"vendor": vendor, "match_method": vm["method"]},
                    "search_po_candidates": {"printed_po": pm["printed_po"], "deterministic_selected": pm["selected_po"],
                                             "deterministic_method": pm["method"], "candidates": pm["candidates"] or
                                             ([{"po_number": pm["selected_po"], "exact_reference": True}] if pm["selected_po"] else []),
-                                            "line_mapping": pm.get("line_mapping")}}
-        return "Assess vendor identity and PO match.\n" + json.dumps(payload, default=str, indent=1), []
+                                            "po_details": [po_facts(n) for n in ids], "line_mapping": pm.get("line_mapping")}}
+        return "Assess vendor identity and PO match.\n" + json.dumps(payload, default=str, separators=(",", ":")), []
 
     def deterministic(self, ctx):
         vm, pm = ctx["vendor_match"], ctx["po_match"]

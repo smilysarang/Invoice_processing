@@ -108,3 +108,21 @@ def test_live_gemini_smoke(fresh_db):
     os.environ["GEMINI_API_KEY"] = os.environ["GEMINI_API_KEY_LIVE_TEST"]
     d = process_batch(load("01_happy_apex_itemized.pdf"), mode="live_llm")["documents"][0]
     assert {t["mode"] for t in fresh_db.traces(d["document_id"])} == {"live_llm"}
+
+
+def test_llm_cannot_flip_tax_treatment_against_printed_arithmetic():
+    """Live regression: the LLM said 'tax-inclusive' on a net-priced split invoice; prices were divided by 1.18."""
+    from src.agents.extraction_agent import merge
+    from src.models import ExtractedInvoice, FieldEvidence, InvoiceLine
+
+    def inv(incl, extractor):
+        i = ExtractedInvoice(doc_type="invoice", extractor=extractor, tax_inclusive=incl)
+        for k, v in {"subtotal": "56000.00", "tax_total": "10080.00", "grand_total": "66080.00"}.items():
+            i.fields[k] = FieldEvidence(field=k, value=v, raw_text=v)
+        i.lines = [InvoiceLine(line_no=1, description="Monitor", quantity="6", unit_price="6000.00", line_total="36000.00"),
+                   InvoiceLine(line_no=2, description="Keyboard", quantity="10", unit_price="2000.00", line_total="20000.00")]
+        return i
+    merged, findings, _ = merge(inv(False, "rules"), inv(True, "llm"))
+    assert merged.tax_inclusive is False
+    assert any(f["rule_id"] == "TAX_TREATMENT_CHECK" for f in findings)
+    assert not any(f["status"] == "FAIL" for f in findings)

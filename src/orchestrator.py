@@ -202,7 +202,7 @@ def _process(run: Run, rec: dict, file_name: str, data: bytes):
     vfind = [_fd(x) for x in vm.pop("findings")]
     pm = matching.match_po(inv, vm["vendor_id"], calc)
     pfind = [_fd(x) for x in pm.pop("findings")]
-    a2 = run.agent(rec, VendorPOAgent(), {"inv": inv, "vendor_match": vm, "po_match": pm})
+    a2 = run.agent(rec, VendorPOAgent(), {"inv": inv, "vendor_match": vm, "po_match": pm, "calc": calc})
     vendor_stage = [x for x in vfind if x["stage"] != "risk"]
     risk_stage = [x for x in vfind if x["stage"] == "risk"]
     rec["findings"] += vendor_stage + pfind + a2.get("findings", [])
