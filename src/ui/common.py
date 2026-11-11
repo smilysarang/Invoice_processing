@@ -1,6 +1,7 @@
 """Shared Streamlit UI helpers: page setup, sidebar (mode, reset), badges, formatting."""
 from __future__ import annotations
 
+import hmac
 import html
 import os
 from decimal import Decimal
@@ -56,9 +57,16 @@ def current_mode() -> str:
     return st.session_state.mode
 
 
+def live_locked() -> bool:
+    """On a public deployment, LIVE_ACCESS_CODE keeps visitors from spending the LLM quota; demo mode stays open to all."""
+    return bool(os.environ.get("LIVE_ACCESS_CODE", "").strip()) and not st.session_state.get("live_unlocked")
+
+
 def provider_status():
     """Returns (provider or None, error str or None) for the selected mode - never silently falls back."""
     mode = current_mode()
+    if mode == "live_llm" and live_locked():
+        return None, "LOCKED: live LLM mode needs the access code (sidebar). Deterministic demo mode is open to everyone."
     try:
         return get_provider(mode), None
     except ProviderError as e:
@@ -87,6 +95,14 @@ def sidebar():
                           format_func=lambda m: "Deterministic demo (no LLM)" if m == "deterministic_demo" else f"Live LLM agents ({os.environ.get('LLM_PROVIDER', 'gemini')})",
                           key="mode_radio")
         st.session_state.mode = choice
+        if choice == "live_llm" and live_locked():
+            code = st.text_input("Access code for live LLM mode", type="password",
+                                 help="Live mode calls a rate-limited LLM API, so it is protected on the public demo.")
+            if code:
+                if hmac.compare_digest(code.strip(), os.environ.get("LIVE_ACCESS_CODE", "").strip()):
+                    st.session_state.live_unlocked = True
+                    st.rerun()
+                st.error("Wrong access code.")
         mode_badge(compact=True)
         st.caption("Deterministic controls (arithmetic, tolerances, duplicates, bank check, policy) run in both modes. "
                    "Only the four agents change.")

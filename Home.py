@@ -29,6 +29,8 @@ with left:
     st.subheader("📤 Upload my invoices")
     ups = st.file_uploader("Drop one or more invoice PDFs (several invoices for the same PO are reconciled together)",
                            type=None, accept_multiple_files=True, help="File type is verified from the bytes, not the extension.")
+    st.caption("Public demo: please upload sample/synthetic invoices only. Files are processed on a shared server, everyone sees "
+               "the same demo history, and in live mode the text is sent to a third-party LLM API.")
     if st.button("Process uploaded invoices", type="primary", disabled=not ups, width="stretch"):
         st.session_state.pending_batch = {"files": [(u.name, u.getvalue()) for u in ups], "label": f"Upload ({len(ups)} file(s))"}
         st.switch_page("pages/1_Live_Run.py")

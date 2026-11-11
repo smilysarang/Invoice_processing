@@ -59,6 +59,20 @@ The adapter reads the provider's rate-limit headers and waits, rather than sendi
 
 > ⚠️ **Privacy:** free-tier cloud APIs may use submitted content to improve their products. Use the synthetic invoices only. Never send real vendor invoices, tax IDs or bank details. For real data, the same adapter runs against a private or local model (`LLM_PROVIDER=ollama`).
 
+### Deploying (Streamlit Community Cloud)
+
+The app deploys as-is from this repo: main file `Home.py`, Python 3.12. `packages.txt` installs the system libraries OCR needs. Settings go in the app's **Secrets**; top-level keys become environment variables, so no code change is needed:
+
+```toml
+PROCESSING_MODE = "deterministic_demo"   # visitors start in demo mode
+LLM_PROVIDER = "groq"
+GROQ_API_KEY = "..."
+GROQ_MODEL = "openai/gpt-oss-20b"
+LIVE_ACCESS_CODE = "..."                 # live LLM mode needs this code; demo mode is open to everyone
+```
+
+On the hosted demo, all visitors share one SQLite database (**Reset demo state** resets it for everyone), and it is re-seeded whenever the app restarts.
+
 ### Tests and scenario harness
 
 ```bash
