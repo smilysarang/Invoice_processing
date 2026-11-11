@@ -28,7 +28,11 @@ Where the problem statement was ambiguous I chose an option and recorded it here
    - Dot-separated dates in a German / comma-decimal document are day-first.
    - Vendor country is deliberately not used, because vendors' invoicing software varies.
 9. **Currency.** It comes from a printed ISO code or an unambiguous symbol (€, ₹/Rs). A bare `$` is ambiguous. No FX conversion is inferred; an invoice whose currency differs from the PO's is held.
-10. **Tax-inclusive invoices.** Net values are derived as gross ÷ (1 + rate), using the rate implied by the printed included-tax amount, before comparing with tax-exclusive PO prices.
+10. **Tax.** Tax rates belong to PO lines (GST depends on each item's HSN/SAC code), so one PO can mix rates; the PO-level rate is the default for lines without their own. Every comparison with the PO is net of tax, and each item's expected tax = its net amount × its PO line rate (`src/pipeline/tax.py`).
+    - Tax printed per item, as summary lines with rates (CGST/SGST/IGST/cess), or only as a total amount is each checked against those per-item expectations. Summary lines are assigned to the items' rate slabs and must add up to each slab's rate and tax, with no assumption that CGST and SGST are equal halves.
+    - Tax-inclusive prices are netted at each item's own rate: gross ÷ (1 + rate). With a single rate, the rate implied by the printed included tax is used.
+    - No tax stated at all: if the total equals the PO value including tax for the invoiced items, the tax is treated as included and the invoice passes with a `TAX_NOT_STATED` warning in the explanation. A total equal to the PO value before tax means tax was not charged (held), and anything else is held.
+    - Whether prices include tax comes from the invoice wording or, without it, from the arithmetic. An LLM's opinion never overrides the printed numbers.
 11. **Bundled invoices.** A single bundled line may be matched to a multi-line PO only if the PO allows bundled billing; it is then compared on totals and flagged `BUNDLED_TOTAL_MATCH`.
 12. **Invoice text is untrusted data.** Instruction-like text aimed at automation is flagged (`PROMPT_INJECTION_SUSPECTED`) and the invoice is held. It is never followed.
 13. **Live-mode failures.** If a live agent fails (quota, auth, network), the invoice is held (`AGENT_UNAVAILABLE`). The deterministic reading is still shown to the reviewer, but the run is not silently treated as a demo-mode result.
