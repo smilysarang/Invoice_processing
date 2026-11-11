@@ -131,5 +131,17 @@
     "reasons_include": [
       "MISSING_REQUIRED_FIELD"
     ]
+  },
+  "25_mixed_gst_rates.pdf": {
+    "decision": "AUTO_APPROVE"
+  },
+  "26_tax_per_item.pdf": {
+    "decision": "AUTO_APPROVE"
+  },
+  "27_tax_not_stated.pdf": {
+    "decision": "AUTO_APPROVE",
+    "reasons_include": [
+      "TAX_NOT_STATED"
+    ]
   }
 }

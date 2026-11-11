@@ -21,7 +21,7 @@ from src.models import ExtractedInvoice
 from src.pipeline import duplicates, matching, policy_engine, split_groups, verification
 from src.pipeline.extraction_rules import extract
 from src.pipeline.intake import intake
-from src.pipeline.normalization import mask_account
+from src.pipeline.normalization import mask_account, norm_invoice_number
 from src.pipeline.text_acquisition import acquire, ocr_available
 from src.pipeline.understanding import understand
 
@@ -221,9 +221,23 @@ def _process(run: Run, rec: dict, file_name: str, data: bytes):
     # 8 duplicates + risk (Agent 3)
     run.running(rec, "duplicates_risk")
     hist = storage.history_rows(exclude_document=rec["document_id"])
+    # retry of a document whose earlier run was held only for a technical reason (e.g. the LLM was unavailable):
+    # the earlier run never assessed the invoice, so it is superseded instead of making this upload a "duplicate".
+    retry_ids, num = storage.technical_hold_ids(), norm_invoice_number(inv.val("invoice_number"))
+    retried = [h for h in hist if h.get("document_id") in retry_ids and
+               (h.get("file_sha256") == rec["sha256"] or (num and vm["vendor_id"] and h.get("vendor_id") == vm["vendor_id"]
+                                                          and h.get("invoice_number_norm") == num))]
+    hist = [h for h in hist if h not in retried]
     po_type = purchase_orders()[pm["selected_po"]].billing_type if pm["selected_po"] else None
     dup = duplicates.check(rec["sha256"], inv, vm["vendor_id"], pm["selected_po"], hist)
     dfind = [_fd(x) for x in dup.pop("findings")]
+    for h in {h["document_id"]: h for h in retried}.values():
+        storage.supersede(h["document_id"], rec["document_id"], run.batch_id)
+        rec.setdefault("supersedes", []).append(h["document_id"])
+        dfind.append({"rule_id": "REPROCESSED_AFTER_TECHNICAL_FAILURE", "stage": "duplicates", "severity": "INFO", "status": "PASS",
+                      "notable": True, "message": f"Re-processing of {h['file_name'] or h['document_id']} ({h['document_id']}), whose earlier "
+                      "run was held only for a technical reason (e.g. LLM unavailable). Not a duplicate; the earlier run is superseded "
+                      "and kept for audit."})
     risk_all = risk_stage + [x for x in vendor_stage if x["rule_id"] == "VENDOR_NOT_APPROVED"] + \
         [x for x in rec["findings"] if x["rule_id"] == "PROMPT_INJECTION_SUSPECTED"]
     a3 = run.agent(rec, DuplicateRiskAgent(), {"inv": inv, "dup": dup, "history": hist, "vendor_id": vm["vendor_id"],
@@ -292,8 +306,8 @@ def finalize(run: Run, recs: list[dict]):
         prior = []
         if existing:
             for did in existing["members"]:
-                if did in {m["document_id"] for m in new_members}:
-                    continue
+                if did in {m["document_id"] for m in new_members} or storage.is_superseded(did):
+                    continue    # superseded = earlier technical-failure run of a document re-processed now
                 d = storage.document(did)
                 cd = storage.current_decision(did)
                 if d and cd and cd["result"]["decision"] not in ("REJECT_DUPLICATE", "REJECT_INVALID"):

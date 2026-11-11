@@ -40,11 +40,19 @@ with right:
     sc = next(s for s in scen if s["id"] == sid)
     st.caption(sc["about"])
     st.markdown("Files: " + " ".join(f"`{f}`" for f in sc["files"]))
-    seen = {h["file_sha256"] for h in storage.history_rows() if h.get("file_sha256")}
-    already = [f for f in sc["files"] if hashlib.sha256((inv_dir / f).read_bytes()).hexdigest() in seen]
+    hist = storage.history_rows()
+    retry_ids = storage.technical_hold_ids()
+    seen = {h["file_sha256"] for h in hist if h.get("file_sha256") and h.get("document_id") not in retry_ids}
+    retry = {h["file_sha256"] for h in hist if h.get("file_sha256") and h.get("document_id") in retry_ids}
+    hashes = {f: hashlib.sha256((inv_dir / f).read_bytes()).hexdigest() for f in sc["files"]}
+    already = [f for f in sc["files"] if hashes[f] in seen]
+    retrying = [f for f in sc["files"] if hashes[f] in retry and f not in already]
     if already:
         st.warning(f"{len(already)} of these files were already processed, so they will (correctly) be rejected as duplicates. "
                    "Use **Reset & run** for a clean demo.")
+    if retrying:
+        st.info(f"{len(retrying)} of these files were held earlier only for a technical reason (e.g. the LLM was unavailable). "
+                "Running again re-processes them; they are not treated as duplicates.")
     b1, b2 = st.columns(2)
     run_it = b1.button("Run this scenario", type="primary", width="stretch")
     if b2.button("Reset & run", width="stretch", help="Re-seed the demo database, then run"):

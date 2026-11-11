@@ -71,6 +71,9 @@ class InvoiceLine(BaseModel):
     line_total: Optional[str] = None
     net_unit_price: Optional[str] = None  # tax-exclusive unit price used for PO comparison
     net_line_total: Optional[str] = None
+    tax_rate: Optional[str] = None        # per-line tax %, when the invoice prints tax per item (e.g. '5' for 5%)
+    tax_amount: Optional[str] = None      # per-line tax amount, when printed
+    gross_total: Optional[str] = None     # per-line amount incl. tax, when printed
     raw_text: str = ""
     source_page: Optional[int] = None
     bbox: Optional[list[float]] = None
@@ -83,6 +86,8 @@ class ExtractedInvoice(BaseModel):
     lines: list[InvoiceLine] = Field(default_factory=list)
     tax_inclusive: bool = False
     tax_rate_printed: Optional[str] = None
+    # each printed tax line: {"label": "CGST", "rate": "9", "amount": "810.00"} - grouped into slabs by taxable base in matching
+    tax_components: list[dict] = Field(default_factory=list)
     locale: dict[str, Any] = Field(default_factory=dict)
     references: list[str] = Field(default_factory=list)      # other doc numbers referenced (reissue/credit note)
     service_period: Optional[str] = None
@@ -131,6 +136,7 @@ class POLine(BaseModel):
     uom: str
     quantity: Decimal
     unit_price: Decimal
+    tax_rate: Optional[Decimal] = None   # per-line tax code (e.g. GST by HSN/SAC); None = the PO's default rate
 
     @property
     def line_total(self) -> Decimal:
@@ -153,9 +159,31 @@ class PurchaseOrder(BaseModel):
     def subtotal(self) -> Decimal:
         return sum((l.line_total for l in self.lines), Decimal("0")).quantize(Decimal("0.01"))
 
+    def line_rate(self, line: "POLine") -> Decimal:
+        return line.tax_rate if line.tax_rate is not None else self.tax_rate
+
+    def rate_for(self, item_code: str) -> Decimal:
+        return next((self.line_rate(l) for l in self.lines if l.item_code == item_code), self.tax_rate)
+
+    @property
+    def rates(self) -> list[Decimal]:
+        """Distinct tax rates on this PO (one per line tax code)."""
+        return sorted({self.line_rate(l) for l in self.lines}) or [self.tax_rate]
+
+    @property
+    def mixed_rates(self) -> bool:
+        return len(self.rates) > 1
+
     @property
     def tax_total(self) -> Decimal:
-        return (self.subtotal * self.tax_rate).quantize(Decimal("0.01"))
+        return sum((l.line_total * self.line_rate(l) for l in self.lines), Decimal("0")).quantize(Decimal("0.01"))
+
+    @property
+    def effective_rate(self) -> Decimal:
+        """The single rate if uniform; otherwise the blended rate (tax / net) - used only where no line detail exists."""
+        if not self.mixed_rates:
+            return self.rates[0]
+        return (self.tax_total / self.subtotal) if self.subtotal else self.tax_rate
 
     @property
     def grand_total(self) -> Decimal:

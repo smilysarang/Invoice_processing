@@ -7,7 +7,7 @@ import streamlit as st
 from src import storage
 from src.master_data import purchase_orders, vendors
 from src.pipeline.matching import remaining_value
-from src.ui.common import badge, label, mode_badge, money, open_review, setup
+from src.ui.common import badge, mode_badge, money, open_review, setup
 
 setup("PO groups", "🧩")
 st.title("🧩 PO groups - all-or-none reconciliation")
@@ -41,7 +41,7 @@ with st.container(border=True):
     c.metric("Invoiced (all members)", money(g["totals"]["invoiced_grand_total"], cur))
     c.caption("✅ exact match" if not diff else f"⛔ difference {diff:+,.2f}")
     d.metric("PO remaining, net of tax (accepted groups only)", money(remaining_value(po), cur))
-    st.caption(f"{po.description} · billing {po.billing_type} · tax {po.tax_rate * 100:.0f}% · tolerance {cur} {g['tolerance']} · "
+    st.caption(f"{po.description} · billing {po.billing_type} · tax {' / '.join(f'{r * 100:.4g}%' for r in po.rates)} · tolerance {cur} {g['tolerance']} · "
                f"policy {g['policy_version']} · reconciled {g['reconciled_at']}")
 
 if g["discrepancies"]:

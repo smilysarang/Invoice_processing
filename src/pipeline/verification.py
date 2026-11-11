@@ -9,7 +9,7 @@ from rapidfuzz import fuzz
 
 from src.master_data import policy, tol
 from src.models import CRITICAL_FIELDS, ExtractedInvoice, PageText, ValidationFinding
-from src.pipeline.normalization import normalize_text, parse_amount, parse_date
+from src.pipeline.normalization import normalize_text
 
 Q = Decimal("0.01")
 
@@ -45,13 +45,21 @@ def ground(inv: ExtractedInvoice, pages: list[PageText]) -> None:
 
 
 def compute(inv: ExtractedInvoice, po_tax_rate: Optional[Decimal] = None) -> dict:
-    """Derive tax-exclusive (net) values used for PO comparison. Returns a calc dict (strings)."""
+    """Derive tax-exclusive (net) values used for PO comparison. Returns a calc dict (strings).
+
+    po_tax_rate is only used when prices include tax but no tax amount is printed (PO candidate scoring);
+    the binding per-item treatment of that case is in tax.resolve_missing_tax."""
     gt, st, tax = inv.dec("grand_total"), inv.dec("subtotal"), inv.dec("tax_total") or Decimal("0")
     disc, ship = inv.dec("discount_total") or Decimal("0"), inv.dec("shipping_total") or Decimal("0")
-    rate = None
+    rate, derived = None, False
     if inv.tax_inclusive and gt is not None and tax:
         net_total = gt - tax
         rate = (tax / net_total) if net_total else None
+    elif inv.tax_inclusive and gt is not None and po_tax_rate:
+        # prices include tax but no tax amount is printed: back out the tax at the PO's rate (flagged by the caller)
+        rate = po_tax_rate
+        tax = (gt - (st if st is not None else gt / (1 + rate))).quantize(Q)
+        derived = True
     for ln in inv.lines:
         up, lt = (Decimal(ln.unit_price) if ln.unit_price else None), (Decimal(ln.line_total) if ln.line_total else None)
         if inv.tax_inclusive and rate:
@@ -72,7 +80,7 @@ def compute(inv: ExtractedInvoice, po_tax_rate: Optional[Decimal] = None) -> dic
             "tax_total": str(tax.quantize(Q)), "discount": str(disc), "shipping": str(ship),
             "grand_total": str(gt) if gt is not None else None,
             "effective_tax_rate": str((tax / net_sub).quantize(Decimal("0.0001"))) if net_sub else None,
-            "tax_inclusive": inv.tax_inclusive}
+            "tax_inclusive": inv.tax_inclusive, "tax_derived": derived}
 
 
 def verify(inv: ExtractedInvoice, pages: list[PageText]) -> tuple[list[ValidationFinding], dict]:
@@ -154,10 +162,19 @@ def verify(inv: ExtractedInvoice, pages: list[PageText]) -> tuple[list[Validatio
             out.append(_f("LINES_SUM_RECONCILIATION", "ERROR" if not ok else "INFO", "PASS" if ok else "FAIL",
                           f"Sum of lines {lines_sum} {'=' if ok else '!='} {'grand total (tax-inclusive)' if inv.tax_inclusive else 'subtotal'} {target}.",
                           expected=str(target), actual=str(lines_sum)))
+    # an invoice with no tax amount at all is resolved against the PO in matching (src/pipeline/tax.py)
     if gt is not None and calc["net_subtotal"] is not None:
-        if inv.tax_inclusive:
-            ok = True
-            msg = f"Tax-inclusive invoice: net {calc['net_subtotal']} + included tax {calc['tax_total']} = {gt}."
+        st, printed_tax = inv.dec("subtotal"), inv.dec("tax_total")
+        if inv.tax_inclusive and st is not None and printed_tax is not None:
+            # a separate net subtotal is printed: it must really add up with the included tax
+            exp = st - Decimal(calc["discount"]) + Decimal(calc["shipping"]) + printed_tax
+            ok = abs(exp - gt) <= tol_abs
+            msg = (f"Tax-inclusive invoice: net subtotal {st} - discount {calc['discount']} + shipping {calc['shipping']} + included tax "
+                   f"{printed_tax} = {exp.quantize(Q)} {'=' if ok else '!='} grand total {gt}.")
+        elif inv.tax_inclusive:
+            ok = True   # nothing independent to reconcile: net is derived as grand total - included tax
+            msg = (f"Tax-inclusive invoice without a separate net subtotal: net derived as grand total {gt} - included tax "
+                   f"{calc['tax_total'] if printed_tax is not None else '(not printed)'}.")
         else:
             exp = Decimal(calc["net_subtotal"]) - Decimal(calc["discount"]) + Decimal(calc["shipping"]) + Decimal(calc["tax_total"])
             ok = abs(exp - gt) <= tol_abs

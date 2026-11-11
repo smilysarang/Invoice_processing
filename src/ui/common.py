@@ -70,7 +70,7 @@ def mode_badge(compact: bool = False):
     if mode == "live_llm":
         p, err = provider_status()
         if err:
-            st.markdown(f'<span class="mode-live">LIVE LLM - NOT READY</span>', unsafe_allow_html=True)
+            st.markdown('<span class="mode-live">LIVE LLM - NOT READY</span>', unsafe_allow_html=True)
             st.error(err)
         else:
             st.markdown(f'<span class="mode-live">LIVE LLM · {p.name} · {html.escape(p.model or "")}</span>', unsafe_allow_html=True)

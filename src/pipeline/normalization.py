@@ -203,7 +203,7 @@ def parse_date(raw: Optional[str], date_order: Optional[str] = None) -> Parsed:
         return Parsed(v, note="month name") if v else Parsed(None, note="invalid date")
     m = re.search(r"\b(\d{1,2})([./-])(\d{1,2})\2(\d{4})\b", s)
     if m:
-        a, sep, b, y = int(m[1]), m[2], int(m[3]), int(m[4])
+        a, b, y = int(m[1]), int(m[3]), int(m[4])
         if a > 12 and b <= 12:
             return Parsed(_iso(y, b, a), note="day-first (day > 12)")
         if b > 12 and a <= 12:

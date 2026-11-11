@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
-from typing import Optional
 
 from src.models import ExtractedInvoice, FieldEvidence, InvoiceLine, PageText, TextLine
 from src.pipeline.normalization import (detect_currency, norm_account, normalize_text, parse_amount, parse_date)
@@ -55,6 +54,9 @@ TABLE_HEADER = (re.compile(r"description|particulars|bezeichnung|item", re.I), r
 TABLE_END = re.compile(r"subtotal|sub\s*total|zwischensumme|grand\s*total|gesamtbetrag|total|taxable|cgst|sgst|igst|mwst|amount\s*in\s*words", re.I)
 ROW_RE = re.compile(r"^(?P<head>.*\S)\s+(?P<qty>\d+(?:[.,]\d+)?)\.?\s*(?P<uom>[A-Za-z]{2,6})?\.?\s+(?P<price>" + AMT + r")\s+(?P<amount>" + AMT + r")\s*$")
 CODE_RE = re.compile(r"^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$")
+# line with per-item tax columns: ... qty uom rate taxable_amount tax% tax_amount [line_total_incl_tax]
+ROW_TAX_RE = re.compile(r"^(?P<head>.*\S)\s+(?P<qty>\d+(?:[.,]\d+)?)\.?\s*(?P<uom>[A-Za-z]{2,6})?\.?\s+(?P<price>" + AMT + r")\s+(?P<amount>"
+                        + AMT + r")\s+(?P<lrate>\d+(?:[.,]\d+)?)\s*%\s+(?P<ltax>" + AMT + r")(?:\s+(?P<lgross>" + AMT + r"))?\s*$")
 
 
 def _ev(field, value, raw, line: TextLine, notes=None) -> FieldEvidence:
@@ -219,6 +221,8 @@ def extract(pages: list[PageText], und: Understanding) -> tuple[ExtractedInvoice
         m = re.search(r"(\d+(?:[.,]\d+)?)\s*%", t)
         if m:
             rate_pct += Decimal(m.group(1).replace(",", "."))
+            inv.tax_components.append({"label": re.sub(r"[:\s]+$", "", t.split("@")[0].split(m.group(0))[0]).strip()[:30] or "Tax",
+                                       "rate": m.group(1).replace(",", "."), "amount": p.value})
     if tax_rows:
         F["tax_total"] = FieldEvidence(field="tax_total", value=str(tax_sum.quantize(Decimal("0.01"))), raw_text=" | ".join(tax_raw),
                                        source_page=tax_rows[0].page, bbox=tax_rows[0].bbox, method=tax_rows[0].method,
@@ -271,7 +275,7 @@ def _parse_lines(pages: list[PageText], ns, notes) -> list[InvoiceLine]:
             continue
         for r in rows[start + 1:]:
             t = normalize_text(r.text)
-            m = ROW_RE.match(t)
+            m = ROW_TAX_RE.match(t) or ROW_RE.match(t)
             if not m:
                 if TABLE_END.search(t):
                     break
@@ -291,9 +295,13 @@ def _parse_lines(pages: list[PageText], ns, notes) -> list[InvoiceLine]:
                 qty = str(qd.normalize()) if qd == qd.to_integral() else str(qd)
                 if qd == qd.to_integral():
                     qty = str(int(qd))
+            gd = m.groupdict()
             out.append(InvoiceLine(line_no=len(out) + 1, description=desc, item_code=code, quantity=qty, uom=m.group("uom"),
                                    unit_price=pr.value, line_total=am.value, raw_text=t, source_page=p.page, bbox=r.bbox,
-                                   method=r.method))
+                                   method=r.method,
+                                   tax_rate=gd["lrate"].replace(",", ".") if gd.get("lrate") else None,
+                                   tax_amount=parse_amount(gd["ltax"], ns).value if gd.get("ltax") else None,
+                                   gross_total=parse_amount(gd["lgross"], ns).value if gd.get("lgross") else None))
     if not out:
         notes.append("no line-item table recognised")
     return out

@@ -210,7 +210,35 @@ def rows(sql: str, args: tuple = ()) -> list[dict]:
 
 
 def history_rows(exclude_document: Optional[str] = None) -> list[dict]:
-    return rows("SELECT * FROM history WHERE document_id IS NULL OR document_id != ? ORDER BY id", (exclude_document or "",))
+    """History used for duplicate checks. Superseded records (technical-failure runs that were re-processed) are excluded."""
+    return rows("SELECT * FROM history WHERE (document_id IS NULL OR document_id != ?) AND COALESCE(status,'') != 'SUPERSEDED' "
+                "ORDER BY id", (exclude_document or "",))
+
+
+# a hold caused only by the system itself (not by the invoice) - re-uploading such a document is a retry, not a duplicate
+TECHNICAL_HOLD_CODES = {"AGENT_UNAVAILABLE", "OCR_UNAVAILABLE", "PIPELINE_ERROR"}
+
+
+def technical_hold_ids() -> set[str]:
+    out = set()
+    for r in rows("SELECT document_id, decision, reason_codes FROM decisions WHERE is_current=1"):
+        if r["decision"] in ("HOLD_FOR_REVIEW", "PENDING_SPLIT_RECONCILIATION") and \
+                TECHNICAL_HOLD_CODES & set(json.loads(r["reason_codes"] or "[]")):
+            out.add(r["document_id"])
+    return out
+
+
+def supersede(old_document_id: str, new_document_id: str, batch_id: Optional[str]) -> None:
+    """Retire a technical-failure run: kept for audit, removed from duplicate checks, PO groups and dashboard counts."""
+    with conn() as c:
+        c.execute("UPDATE history SET status='SUPERSEDED' WHERE document_id=?", (old_document_id,))
+    audit(batch_id, None, old_document_id, "system", "duplicates_risk", "SUPERSEDED", "info",
+          f"Re-processed as {new_document_id}. This run had failed for a technical reason, so it no longer counts for duplicate "
+          "checks, PO groups or the dashboard.", {"superseded_by": new_document_id})
+
+
+def is_superseded(document_id: str) -> bool:
+    return bool(rows("SELECT 1 FROM history WHERE document_id=? AND status='SUPERSEDED' LIMIT 1", (document_id,)))
 
 
 def consumption(po_number: str) -> list[dict]:
@@ -263,6 +291,7 @@ def dashboard_rows() -> list[dict]:
         x.decision, x.reason_codes, x.version
         FROM documents d LEFT JOIN invoices i ON i.document_id=d.document_id
         LEFT JOIN decisions x ON x.document_id=d.document_id AND x.is_current=1
+        WHERE d.document_id NOT IN (SELECT document_id FROM history WHERE status='SUPERSEDED' AND document_id IS NOT NULL)
         ORDER BY d.received_at DESC""")
 
 

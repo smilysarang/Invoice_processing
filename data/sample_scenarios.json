@@ -129,6 +129,30 @@
     "about": "Critical field absent - must not be invented."
   },
   {
+    "id": "mixed_gst",
+    "title": "Mixed GST rates on one PO (5% + 18%)",
+    "files": [
+      "25_mixed_gst_rates.pdf"
+    ],
+    "about": "Pantry items at 5% GST and a kettle at 18% on the same PO; tax is checked per PO line rate."
+  },
+  {
+    "id": "tax_per_item",
+    "title": "Tax printed per item (5% and 18% on equal amounts)",
+    "files": [
+      "26_tax_per_item.pdf"
+    ],
+    "about": "GST rate and amount on every line; tea at 5% and appliances at 18% each have a taxable value of 9,000."
+  },
+  {
+    "id": "tax_not_stated",
+    "title": "Tax not stated on the invoice (embedded in the total)",
+    "files": [
+      "27_tax_not_stated.pdf"
+    ],
+    "about": "No GST line and no 'inclusive' wording: the total equals the PO value incl. 18% GST - passed with a warning."
+  },
+  {
     "id": "invalid",
     "title": "Invalid documents (statement, corrupt, renamed PNG)",
     "files": [

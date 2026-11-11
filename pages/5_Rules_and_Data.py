@@ -29,7 +29,7 @@ with t2:
     for p in purchase_orders().values():
         for l in p.lines:
             rows.append({"PO": p.po_number, "vendor": p.vendor_id, "type": p.billing_type, "date": p.po_date, "currency": p.currency,
-                         "tax": f"{p.tax_rate * 100:.0f}%", "item": l.item_code, "description": l.description, "qty": str(l.quantity),
+                         "tax": f"{p.line_rate(l) * 100:.4g}%", "item": l.item_code, "description": l.description, "qty": str(l.quantity),
                          "uom": l.uom, "unit price": str(l.unit_price), "PO subtotal": str(p.subtotal)})
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 with t3:

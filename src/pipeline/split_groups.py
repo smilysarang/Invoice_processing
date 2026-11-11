@@ -63,13 +63,20 @@ def reconcile(po: PurchaseOrder, members: list[dict], group_id: str) -> dict:
         lines.append({"item_code": c, "description": pl.description, "uom": pl.uom, "ordered_qty": str(pl.quantity),
                       "previously_accepted_qty": str(prev.get(c, Decimal("0"))), "expected_qty": str(expected), "invoiced_qty": str(inv_q),
                       "po_unit_price": str(pl.unit_price), "invoice_unit_prices": sorted(prices[c]),
+                      "tax_rate": str(po.line_rate(pl)),
                       "expected_value": str((expected * pl.unit_price).quantize(Q)), "invoiced_value": str(agg_val[c].quantize(Q)),
                       "status": status, "by_invoice": {k: str(v) for k, v in by_inv[c].items()}})
     for u in unexpected:
         discrepancies.append(f"Unexpected item on {u['invoice']}: '{u['description']}' ({u.get('item_code') or 'no code'}) is not on {po.po_number}")
 
     exp_sub = sum((Decimal(l["expected_value"]) for l in lines), Decimal("0")).quantize(Q)
-    exp_tax = (exp_sub * po.tax_rate).quantize(Q)
+    # expected tax per PO line at that line's own rate (POs can mix tax codes, e.g. 5% and 18% GST)
+    by_rate: dict[Decimal, Decimal] = {}
+    for l in lines:
+        r = Decimal(l["tax_rate"])
+        by_rate[r] = by_rate.get(r, Decimal("0")) + Decimal(l["expected_value"])
+    exp_tax = sum(((v * r).quantize(Q) for r, v in by_rate.items()), Decimal("0"))
+    tax_basis = " + ".join(f"{(r * 100).normalize():f}% of {v.quantize(Q)}" for r, v in sorted(by_rate.items()))
     inv_sub = sum((Decimal(m["calc"]["net_subtotal"] or "0") for m in members), Decimal("0")).quantize(Q)
     inv_tax = sum((Decimal(m["calc"]["tax_total"] or "0") for m in members), Decimal("0")).quantize(Q)
     inv_gt = sum((Decimal(m["calc"]["grand_total"] or "0") for m in members), Decimal("0")).quantize(Q)
@@ -83,7 +90,7 @@ def reconcile(po: PurchaseOrder, members: list[dict], group_id: str) -> dict:
         if abs(inv_sub - exp_sub) > t:
             discrepancies.append(f"Aggregate subtotal {inv_sub} != expected {exp_sub}")
         if abs(inv_tax - exp_tax) > tax_tol:
-            discrepancies.append(f"Aggregate tax {inv_tax} != expected {exp_tax} ({po.tax_rate * 100:.0f}% of {exp_sub})")
+            discrepancies.append(f"Aggregate tax {inv_tax} != expected {exp_tax} ({tax_basis})")
         if abs(inv_gt - (exp_sub + exp_tax)) > tax_tol:
             discrepancies.append(f"Aggregate grand total {inv_gt} != expected {exp_sub + exp_tax}")
     elif still_needed and not discrepancies and inv_sub < exp_sub:

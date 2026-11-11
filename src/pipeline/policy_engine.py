@@ -31,6 +31,11 @@ NEXT_ACTIONS = {
     "GROUP_BLOCKED_BY_MEMBER": "Another invoice in this PO group failed its own checks; resolve it first - the group is accepted all-or-none.",
     "GROUP_INCOMPLETE": "Waiting for the remaining split invoice(s) for this PO; the group is re-reconciled when they arrive.",
     "TAX_RATE_CHECK": "Tax does not match the PO tax treatment - request a corrected invoice.",
+    "TAX_NOT_CHARGED": "No tax was charged although the PO items carry tax - request a corrected tax invoice.",
+    "TAX_TOTAL_VS_PO": "The invoice total does not match the PO value for the invoiced items - check prices and tax with the vendor.",
+    "TAX_TOTAL_CHECK": "The total tax does not match the tax expected for the invoiced items - request a corrected invoice.",
+    "TAX_TOTAL_CONSISTENCY": "Per-item taxes do not add up to the stated tax total - request a corrected invoice.",
+    "TAX_RATE_MISMATCH": "The invoice charges a different tax rate than the PO - confirm the correct rate with procurement and request a corrected invoice.",
     "TOTAL_RECONCILIATION": "Invoice totals do not add up - request a corrected invoice.",
     "LINE_ARITHMETIC": "Line amounts do not add up - request a corrected invoice.",
     "LINES_SUM_RECONCILIATION": "The line items do not add up to the invoice subtotal/total - check the PDF and request a corrected invoice if confirmed.",
@@ -41,6 +46,7 @@ NEXT_ACTIONS = {
     "INTAKE_CORRUPT": "File is damaged - ask the vendor to resend.",
     "INTAKE_FILE_TYPE": "File is not a PDF - ask the vendor to resend as PDF.",
     "OCR_UNAVAILABLE": "Install the OCR engine or review the scanned invoice manually.",
+    "AGENT_UNAVAILABLE": "A live AI agent failed (quota/network) - re-upload the invoice once the provider is available; it will be re-processed, not treated as a duplicate.",
 }
 
 

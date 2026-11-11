@@ -24,7 +24,7 @@ from src import storage  # noqa: E402
 from src.orchestrator import process_batch  # noqa: E402
 
 ORDER = ["happy_itemized", "happy_bundled", "happy_scanned", "ec1a", "ec1b", "ec2", "ec3", "ec4a", "ec4b", "split_ok", "split_bad",
-         "bonus_injection", "missing", "invalid"]
+         "bonus_injection", "missing", "mixed_gst", "tax_per_item", "tax_not_stated", "invalid"]
 ICON = {"AUTO_APPROVE": "[APPROVE]", "HOLD_FOR_REVIEW": "[HOLD]   ", "PENDING_SPLIT_RECONCILIATION": "[PENDING]",
         "REJECT_DUPLICATE": "[DUP]    ", "REJECT_INVALID": "[INVALID]"}
 

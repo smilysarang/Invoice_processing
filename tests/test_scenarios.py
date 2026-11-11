@@ -5,7 +5,7 @@ from src.orchestrator import process_batch
 from tests.conftest import load
 
 ORDER = ["happy_itemized", "happy_bundled", "happy_scanned", "ec1a", "ec1b", "ec2", "ec3", "ec4a", "ec4b", "split_ok", "split_bad",
-         "bonus_injection", "missing", "invalid"]
+         "bonus_injection", "missing", "mixed_gst", "tax_per_item", "tax_not_stated", "invalid"]
 
 
 def run(*names, **kw):

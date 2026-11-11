@@ -1,25 +1,32 @@
-po_number,line_no,item_code,description,uom,quantity,unit_price
-PO-1001,1,ERG-CH-01,Ergonomic Office Chair,NOS,8,9500.00
-PO-1001,2,STD-DSK-02,Height-Adjustable Standing Desk,NOS,2,12000.00
-PO-1002,1,TNR-85A,Toner Cartridge 85A,NOS,20,2500.00
-PO-2001,1,APX-MON-27,27-inch IPS Monitor,NOS,10,6000.00
-PO-2001,2,APX-KBM-01,Wireless Keyboard & Mouse Combo,NOS,20,2000.00
-PO-2002,1,APX-MON-27,27-inch IPS Monitor,NOS,10,6000.00
-PO-2002,2,APX-KBM-01,Wireless Keyboard & Mouse Combo,NOS,20,2000.00
-PO-3010,1,BW-MSP-RET,Managed IT support - monthly retainer,MON,12,150000.00
-PO-3020,1,BW-SEC-AUD,Network security audit and report,LOT,1,200000.00
-PO-3030,1,BW-CM-ASM,Cloud migration - assessment,LOT,1,40000.00
-PO-3030,2,BW-CM-MIG,Cloud migration - workload migration,LOT,1,60000.00
-PO-3030,3,BW-CM-HYP,Cloud migration - hypercare,LOT,1,20000.00
-PO-4001,1,KW-SPV-200,Spannvorrichtung Typ 200,Stk,3,1234.56
-PO-4001,2,KW-WK-15,Wartungskit WK-15,Stk,2,249.90
-PO-5001,1,NSL-FTL-MP,Full truckload Mumbai-Pune,TRIP,4,18500.00
-PO-5001,2,NSL-LU,Loading and unloading charges,TRIP,4,1500.00
-PO-5003,1,NSL-WHS,Warehouse shifting - Bhiwandi,LOT,1,37000.00
-PO-5004,1,NSL-CC-20,Reefer container trip (20 ft),TRIP,3,22000.00
-PO-6001,1,SPK-BOX-L,Corrugated box 18x12x10 in,NOS,500,42.00
-PO-6002,1,SPK-BW-50,Bubble wrap roll 50 m,ROLL,40,650.00
-PO-6003,1,SPK-MLR-P,Printed mailer box (custom),NOS,1000,18.00
-PO-6004,1,SPK-MLR-P,Printed mailer box (custom),NOS,1000,18.00
-PO-7001,1,LUM-DASH-ANN,Analytics dashboard - annual licence,YR,1,4250.00
-PO-8001,1,SHD-STN,Stationery kit,NOS,100,450.00
+po_number,line_no,item_code,description,uom,quantity,unit_price,tax_rate
+PO-1001,1,ERG-CH-01,Ergonomic Office Chair,NOS,8,9500.00,
+PO-1001,2,STD-DSK-02,Height-Adjustable Standing Desk,NOS,2,12000.00,
+PO-1002,1,TNR-85A,Toner Cartridge 85A,NOS,20,2500.00,
+PO-1003,1,PAN-TEA-1K,"Assam tea, 1 kg pack",PKT,40,450.00,0.05
+PO-1003,2,PAN-COF-1K,"Filter coffee powder, 1 kg pack",PKT,30,700.00,0.05
+PO-1003,3,APP-KTL-17,Electric kettle 1.7 L,NOS,6,1500.00,0.18
+PO-1004,1,PAN-TEA-1K,"Assam tea, 1 kg pack",PKT,20,450.00,0.05
+PO-1004,2,APP-MWO-20,Microwave oven 20 L,NOS,1,6000.00,0.18
+PO-1004,3,PAN-CUP-PK,"Paper cups, pack of 100",PKT,25,120.00,0.18
+PO-2001,1,APX-MON-27,27-inch IPS Monitor,NOS,10,6000.00,
+PO-2001,2,APX-KBM-01,Wireless Keyboard & Mouse Combo,NOS,20,2000.00,
+PO-2002,1,APX-MON-27,27-inch IPS Monitor,NOS,10,6000.00,
+PO-2002,2,APX-KBM-01,Wireless Keyboard & Mouse Combo,NOS,20,2000.00,
+PO-3010,1,BW-MSP-RET,Managed IT support - monthly retainer,MON,12,150000.00,
+PO-3020,1,BW-SEC-AUD,Network security audit and report,LOT,1,200000.00,
+PO-3030,1,BW-CM-ASM,Cloud migration - assessment,LOT,1,40000.00,
+PO-3030,2,BW-CM-MIG,Cloud migration - workload migration,LOT,1,60000.00,
+PO-3030,3,BW-CM-HYP,Cloud migration - hypercare,LOT,1,20000.00,
+PO-4001,1,KW-SPV-200,Spannvorrichtung Typ 200,Stk,3,1234.56,
+PO-4001,2,KW-WK-15,Wartungskit WK-15,Stk,2,249.90,
+PO-5001,1,NSL-FTL-MP,Full truckload Mumbai-Pune,TRIP,4,18500.00,
+PO-5001,2,NSL-LU,Loading and unloading charges,TRIP,4,1500.00,
+PO-5003,1,NSL-WHS,Warehouse shifting - Bhiwandi,LOT,1,37000.00,
+PO-5004,1,NSL-CC-20,Reefer container trip (20 ft),TRIP,3,22000.00,
+PO-6001,1,SPK-BOX-L,Corrugated box 18x12x10 in,NOS,500,42.00,
+PO-6002,1,SPK-BW-50,Bubble wrap roll 50 m,ROLL,40,650.00,
+PO-6003,1,SPK-MLR-P,Printed mailer box (custom),NOS,1000,18.00,
+PO-6004,1,SPK-MLR-P,Printed mailer box (custom),NOS,1000,18.00,
+PO-6005,1,SPK-SWF-23,"Stretch wrap film 23 micron, 500 mm",ROLL,60,850.00,
+PO-7001,1,LUM-DASH-ANN,Analytics dashboard - annual licence,YR,1,4250.00,
+PO-8001,1,SHD-STN,Stationery kit,NOS,100,450.00,

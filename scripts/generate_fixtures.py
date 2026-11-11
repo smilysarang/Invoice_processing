@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pymupdf
 from PIL import Image, ImageFilter
-from reportlab.lib.colors import Color, HexColor, black, white
+from reportlab.lib.colors import HexColor, black, white
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
@@ -74,12 +74,21 @@ VENDORS = [
 ]
 VBY = {v["vendor_id"]: v for v in VENDORS}
 
-# po_number, vendor, currency, status, date, tax_rate, billing, description, allow_bundled, lines[(code, desc, uom, qty, price)]
+# po_number, vendor, currency, status, date, tax_rate (PO default), billing, description, allow_bundled,
+# lines[(code, desc, uom, qty, price[, line tax_rate])] - a line rate overrides the PO default (GST depends on the item HSN/SAC)
 POS = [
     ("PO-1001", "V001", "INR", "OPEN", "2026-09-28", "0.18", "ONE_TIME", "Office furniture - Bengaluru HQ", False,
      [("ERG-CH-01", "Ergonomic Office Chair", "NOS", "8", "9500.00"), ("STD-DSK-02", "Height-Adjustable Standing Desk", "NOS", "2", "12000.00")]),
     ("PO-1002", "V001", "INR", "OPEN", "2026-09-15", "0.18", "ONE_TIME", "Printer consumables", False,
      [("TNR-85A", "Toner Cartridge 85A", "NOS", "20", "2500.00")]),
+    ("PO-1003", "V001", "INR", "OPEN", "2026-10-07", "0.18", "ONE_TIME", "Pantry supplies and appliances - Bengaluru HQ", False,
+     [("PAN-TEA-1K", "Assam tea, 1 kg pack", "PKT", "40", "450.00", "0.05"),
+      ("PAN-COF-1K", "Filter coffee powder, 1 kg pack", "PKT", "30", "700.00", "0.05"),
+      ("APP-KTL-17", "Electric kettle 1.7 L", "NOS", "6", "1500.00", "0.18")]),
+    ("PO-1004", "V001", "INR", "OPEN", "2026-10-12", "0.18", "ONE_TIME", "Pantry restock - Pune office", False,
+     [("PAN-TEA-1K", "Assam tea, 1 kg pack", "PKT", "20", "450.00", "0.05"),
+      ("APP-MWO-20", "Microwave oven 20 L", "NOS", "1", "6000.00", "0.18"),
+      ("PAN-CUP-PK", "Paper cups, pack of 100", "PKT", "25", "120.00", "0.18")]),
     ("PO-2001", "V001", "INR", "OPEN", "2026-10-01", "0.18", "ONE_TIME", "IT peripherals - Phase 1 (split delivery)", False,
      [("APX-MON-27", "27-inch IPS Monitor", "NOS", "10", "6000.00"), ("APX-KBM-01", "Wireless Keyboard & Mouse Combo", "NOS", "20", "2000.00")]),
     ("PO-2002", "V001", "INR", "OPEN", "2026-10-10", "0.18", "ONE_TIME", "IT peripherals - Phase 2, Pune office (split delivery)", False,
@@ -107,6 +116,8 @@ POS = [
      [("SPK-MLR-P", "Printed mailer box (custom)", "NOS", "1000", "18.00")]),
     ("PO-6004", "V006", "INR", "OPEN", "2026-10-06", "0.18", "ONE_TIME", "Printed mailer boxes - restock", False,
      [("SPK-MLR-P", "Printed mailer box (custom)", "NOS", "1000", "18.00")]),
+    ("PO-6005", "V006", "INR", "OPEN", "2026-10-11", "0.18", "ONE_TIME", "Stretch wrap film", False,
+     [("SPK-SWF-23", "Stretch wrap film 23 micron, 500 mm", "ROLL", "60", "850.00")]),
     ("PO-7001", "V007", "USD", "OPEN", "2026-06-15", "0.00", "ONE_TIME", "Analytics dashboard subscription (annual)", False,
      [("LUM-DASH-ANN", "Analytics dashboard - annual licence", "YR", "1", "4250.00")]),
     ("PO-8001", "V005", "INR", "OPEN", "2026-05-20", "0.18", "ONE_TIME", "Miscellaneous stationery", False,
@@ -215,9 +226,14 @@ def draw_invoice(spec: dict) -> bytes:
             yb -= 12
             c.drawString(40, yb, line)
         y = min(y, yb) - 25
-        x_cols = [40, 120, 330, 380, 420, 490, 560]
-        y = _table(c, x_cols, y, ["Item Code", "Description", "Qty", "UOM", "Rate", "Amount"], spec["rows"],
-                   ["L", "L", "R", "L", "R", "R"], desc_width=200)
+        if spec.get("tax_columns"):   # per-item GST columns: taxable value, GST %, GST amount, line total
+            x_cols = [40, 100, 250, 278, 308, 360, 420, 455, 505, 560]
+            y = _table(c, x_cols, y, ["Item Code", "Description", "Qty", "UOM", "Rate", "Taxable", "GST %", "GST Amt", "Total"],
+                       spec["rows"], ["L", "L", "R", "L", "R", "R", "R", "R", "R"], size=8, desc_width=145)
+        else:
+            x_cols = [40, 120, 330, 380, 420, 490, 560]
+            y = _table(c, x_cols, y, ["Item Code", "Description", "Qty", "UOM", "Rate", "Amount"], spec["rows"],
+                       ["L", "L", "R", "L", "R", "R"], desc_width=200)
     elif tpl == "modern":     # Bluewave: coloured band, two-column meta
         c.setFillColor(HexColor("#0B3D91"))
         c.rect(0, H - 100, W, 75, stroke=0, fill=1)
@@ -390,7 +406,7 @@ def gst_totals(subtotal, rate, split=True, fmt=fmt_in, prefix="INR "):
 
 
 def po_lines(po_number):
-    return next(p for p in POS if p[0] == po_number)[9]
+    return [l[:5] for l in next(p for p in POS if p[0] == po_number)[9]]
 
 
 def sel(po_number, qty_override=None, price_override=None):
@@ -545,6 +561,43 @@ def build_specs():
         template="minimal", vendor="V006", title="TAX INVOICE",
         meta=[("Invoice Date", "19/10/2026"), ("PO Number", "PO-6001"), ("Currency", "INR")],
         rows=rows_for(L), totals=gst_totals(subtotal_of(L), "0.18", split=False))
+    # 25 one PO, two GST rates: pantry items at 5%, an appliance at 18% (CGST + SGST printed per rate)
+    L = sel("PO-1003")
+    base5 = subtotal_of(L[:2])
+    base18 = subtotal_of(L[2:])
+    t5, t18 = (base5 * D("0.05")).quantize(D("0.01")), (base18 * D("0.18")).quantize(D("0.01"))
+    S["25_mixed_gst_rates.pdf"] = dict(
+        template="classic", vendor="V001", title="TAX INVOICE",
+        meta=[("Invoice No", "APX-INV-1131"), ("Invoice Date", "24/10/2026"), ("Due Date", "23/11/2026"),
+              ("PO Number", "PO-1003"), ("Currency", "INR"), ("Payment Terms", "Net 30")],
+        rows=rows_for(L),
+        totals=[("Subtotal", fmt_in(base5 + base18)),
+                ("CGST @ 2.5%", fmt_in(t5 / 2)), ("SGST @ 2.5%", fmt_in(t5 / 2)),
+                ("CGST @ 9%", fmt_in(t18 / 2)), ("SGST @ 9%", fmt_in(t18 / 2)),
+                ("Grand Total", "INR " + fmt_in(base5 + base18 + t5 + t18))],
+        bank=bank_lines("V001"),
+        notes=["Tea and coffee: GST 5% (HSN 0902 / 0901). Electric kettle: GST 18% (HSN 8516)."])
+    # 26 tax printed PER ITEM; 5% and 18% happen to apply to the same taxable amount (9,000 each)
+    rows, t5, t18 = [], D("0"), D("0")
+    for code, desc, uom, qty, price, rate in next(p for p in POS if p[0] == "PO-1004")[9]:
+        taxable = D(qty) * D(price)
+        gst = (taxable * D(rate)).quantize(D("0.01"))
+        t5, t18 = (t5 + gst, t18) if rate == "0.05" else (t5, t18 + gst)
+        rows.append((code, desc, qty, uom, fmt_in(price), fmt_in(taxable), f"{int(D(rate) * 100)}%", fmt_in(gst), fmt_in(taxable + gst)))
+    base = subtotal_of(sel("PO-1004"))
+    S["26_tax_per_item.pdf"] = dict(
+        template="classic", vendor="V001", title="TAX INVOICE", tax_columns=True, rows=rows,
+        meta=[("Invoice No", "APX-INV-1140"), ("Invoice Date", "27/10/2026"), ("Due Date", "26/11/2026"),
+              ("PO Number", "PO-1004"), ("Currency", "INR"), ("Payment Terms", "Net 30")],
+        totals=[("Taxable value", fmt_in(base)), ("CGST @ 2.5%", fmt_in(t5 / 2)), ("SGST @ 2.5%", fmt_in(t5 / 2)),
+                ("CGST @ 9%", fmt_in(t18 / 2)), ("SGST @ 9%", fmt_in(t18 / 2)), ("Grand Total", "INR " + fmt_in(base + t5 + t18))],
+        bank=bank_lines("V001"))
+    # 27 no tax stated anywhere: the prices silently include 18% GST (850.00 net -> 1,003.00)
+    S["27_tax_not_stated.pdf"] = dict(
+        template="minimal", vendor="V006", title="INVOICE",
+        meta=[("Invoice No", "SPI/26-27/0412"), ("Invoice Date", "29/10/2026"), ("PO Number", "PO-6005"), ("Currency", "INR")],
+        rows=[("SPK-SWF-23", "Stretch wrap film 23 micron, 500 mm", "60", "ROLL", fmt_in("1003.00"), fmt_in("60180.00"))],
+        totals=[("Total Amount", "INR " + fmt_in("60180.00"))])
     return S
 
 
@@ -620,10 +673,10 @@ def main():
             w.writerow([p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], str(p[8]).lower()])
     with open(DATA / "po_lines.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["po_number", "line_no", "item_code", "description", "uom", "quantity", "unit_price"])
+        w.writerow(["po_number", "line_no", "item_code", "description", "uom", "quantity", "unit_price", "tax_rate"])
         for p in POS:
-            for i, (code, desc, uom, qty, price) in enumerate(p[9], 1):
-                w.writerow([p[0], i, code, desc, uom, qty, price])
+            for i, (code, desc, uom, qty, price, *rate) in enumerate(p[9], 1):
+                w.writerow([p[0], i, code, desc, uom, qty, price, rate[0] if rate else ""])
     hist = [
         # invoice_id, vendor_id, doc_type, invoice_number, invoice_date, currency, grand_total, po_number, sha256, status, related_invoice, service_period
         ("H-0001", "V001", "INVOICE", "APX-INV-0998", "2026-10-05", "INR", "59000.00", "PO-1002", sha(original), "APPROVED", "", ""),
@@ -679,6 +732,12 @@ def main():
          "about": "Invoice text tells the 'AI system' to approve it."},
         {"id": "missing", "title": "Missing invoice number", "files": ["24_missing_invoice_number.pdf"],
          "about": "Critical field absent - must not be invented."},
+        {"id": "mixed_gst", "title": "Mixed GST rates on one PO (5% + 18%)", "files": ["25_mixed_gst_rates.pdf"],
+         "about": "Pantry items at 5% GST and a kettle at 18% on the same PO; tax is checked per PO line rate."},
+        {"id": "tax_per_item", "title": "Tax printed per item (5% and 18% on equal amounts)", "files": ["26_tax_per_item.pdf"],
+         "about": "GST rate and amount on every line; tea at 5% and appliances at 18% each have a taxable value of 9,000."},
+        {"id": "tax_not_stated", "title": "Tax not stated on the invoice (embedded in the total)", "files": ["27_tax_not_stated.pdf"],
+         "about": "No GST line and no 'inclusive' wording: the total equals the PO value incl. 18% GST - passed with a warning."},
         {"id": "invalid", "title": "Invalid documents (statement, corrupt, renamed PNG)",
          "files": ["21_invalid_statement_not_invoice.pdf", "22_invalid_corrupt.pdf", "23_invalid_png_renamed.pdf"],
          "about": "Out of scope / unreadable inputs."},
@@ -710,6 +769,9 @@ def main():
         "22_invalid_corrupt.pdf": {"decision": "REJECT_INVALID", "reasons_include": ["INTAKE_CORRUPT"]},
         "23_invalid_png_renamed.pdf": {"decision": "REJECT_INVALID", "reasons_include": ["INTAKE_FILE_TYPE"]},
         "24_missing_invoice_number.pdf": {"decision": "HOLD_FOR_REVIEW", "reasons_include": ["MISSING_REQUIRED_FIELD"]},
+        "25_mixed_gst_rates.pdf": {"decision": "AUTO_APPROVE"},
+        "26_tax_per_item.pdf": {"decision": "AUTO_APPROVE"},
+        "27_tax_not_stated.pdf": {"decision": "AUTO_APPROVE", "reasons_include": ["TAX_NOT_STATED"]},
     }
     (DATA / "expected_scenarios.json").write_text(json.dumps(expected, indent=2), encoding="utf-8")
     print(f"Generated {len(list(INV.glob('*.pdf')))} invoice PDFs in {INV.relative_to(ROOT)}")

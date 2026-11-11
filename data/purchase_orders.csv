@@ -1,6 +1,8 @@
 po_number,vendor_id,currency,status,po_date,tax_rate,billing_type,description,allow_bundled_invoice
 PO-1001,V001,INR,OPEN,2026-09-28,0.18,ONE_TIME,Office furniture - Bengaluru HQ,false
 PO-1002,V001,INR,OPEN,2026-09-15,0.18,ONE_TIME,Printer consumables,false
+PO-1003,V001,INR,OPEN,2026-10-07,0.18,ONE_TIME,Pantry supplies and appliances - Bengaluru HQ,false
+PO-1004,V001,INR,OPEN,2026-10-12,0.18,ONE_TIME,Pantry restock - Pune office,false
 PO-2001,V001,INR,OPEN,2026-10-01,0.18,ONE_TIME,IT peripherals - Phase 1 (split delivery),false
 PO-2002,V001,INR,OPEN,2026-10-10,0.18,ONE_TIME,"IT peripherals - Phase 2, Pune office (split delivery)",false
 PO-3010,V002,INR,OPEN,2026-04-01,0.18,BLANKET,Managed IT support retainer FY26-27 (12 months),false
@@ -14,5 +16,6 @@ PO-6001,V006,INR,OPEN,2026-10-02,0.18,ONE_TIME,Corrugated shipping boxes,false
 PO-6002,V006,INR,OPEN,2026-10-09,0.18,ONE_TIME,Bubble wrap,false
 PO-6003,V006,INR,OPEN,2026-09-20,0.18,ONE_TIME,Printed mailer boxes - Diwali campaign,false
 PO-6004,V006,INR,OPEN,2026-10-06,0.18,ONE_TIME,Printed mailer boxes - restock,false
+PO-6005,V006,INR,OPEN,2026-10-11,0.18,ONE_TIME,Stretch wrap film,false
 PO-7001,V007,USD,OPEN,2026-06-15,0.00,ONE_TIME,Analytics dashboard subscription (annual),false
 PO-8001,V005,INR,OPEN,2026-05-20,0.18,ONE_TIME,Miscellaneous stationery,false

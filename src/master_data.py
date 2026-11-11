@@ -49,7 +49,8 @@ def purchase_orders() -> dict[str, PurchaseOrder]:
         for r in csv.DictReader(f):
             lines.setdefault(r["po_number"], []).append(POLine(
                 po_number=r["po_number"], line_no=int(r["line_no"]), item_code=r["item_code"], description=r["description"],
-                uom=r["uom"], quantity=Decimal(r["quantity"]), unit_price=Decimal(r["unit_price"])))
+                uom=r["uom"], quantity=Decimal(r["quantity"]), unit_price=Decimal(r["unit_price"]),
+                tax_rate=Decimal(r["tax_rate"]) if (r.get("tax_rate") or "").strip() else None))
     out = {}
     with open(DATA / "purchase_orders.csv", encoding="utf-8") as f:
         for r in csv.DictReader(f):

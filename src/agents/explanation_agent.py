@@ -41,12 +41,19 @@ LABELS = {
     "INTAKE_CORRUPT": "the file is damaged",
     "INTAKE_FILE_TYPE": "the file is not really a PDF",
     "TAX_RATE_CHECK": "tax does not match the PO tax rate",
+    "TAX_RATE_MISMATCH": "the invoice's tax rate differs from the PO's tax rate",
+    "TAX_NOT_STATED": "the invoice does not state the tax (treated as included in the total)",
+    "TAX_NOT_CHARGED": "no tax was charged although the PO items carry tax",
+    "TAX_TOTAL_VS_PO": "the invoice total does not match the PO value for the invoiced items",
+    "TAX_TOTAL_CHECK": "the total tax does not match the tax expected for the items",
+    "TAX_TOTAL_CONSISTENCY": "the per-item taxes do not add up to the stated total tax",
     "TOTAL_RECONCILIATION": "the invoice totals do not add up",
     "LINES_SUM_RECONCILIATION": "the line items do not add up to the invoice total",
     "EXTRACTION_DISAGREEMENT": "the two independent readings of the document disagree",
     "AGENT_RISK_ESCALATION": "an AI agent raised an additional risk",
     "AGENT_POLICY_CONFLICT": "AI agent and rules disagree on the PO",
     "AGENT_UNAVAILABLE": "a live AI agent call failed",
+    "REPROCESSED_AFTER_TECHNICAL_FAILURE": "re-processed after an earlier technical failure (not a duplicate)",
     "OCR_UNAVAILABLE": "the scanned page could not be read (OCR not installed)",
 }
 HEADLINES = {"AUTO_APPROVE": "Ready for the next approval/payment step",
@@ -69,6 +76,8 @@ The decision has ALREADY been made by a deterministic policy engine. You must no
 Write for a non-technical AP reviewer:
 - headline: one short line.
 - explanation: 3-5 plain-language sentences citing the specific evidence (amounts, PO numbers, fields). Never hide a failed check.
+- Mention EVERY warning you are given in the explanation, even when the decision is AUTO_APPROVE
+  (e.g. "Warning: the invoice does not state the tax ...").
 - reviewer_checklist: concrete next steps.
 - vendor_message_draft: ONLY if the vendor must supply or correct something; a short polite draft (it is never sent automatically).
   For bank-detail changes, do NOT ask the vendor to confirm by replying; say the company will call the contact already on file.
@@ -82,15 +91,18 @@ def template(ctx) -> dict:
     dec, reasons = d["decision"], d["reason_codes"]
     fails = [f for f in ctx["findings"] if f.get("status") == "FAIL" and f.get("severity") == "ERROR"]
     warns = [f for f in ctx["findings"] if f.get("status") == "WARN" or f.get("notable")]
+    warns.sort(key=lambda f: f.get("rule_id") != "TAX_NOT_STATED")     # the tax warning is always shown first
     passes = [f for f in ctx["findings"] if f.get("status") == "PASS"]
     if dec == "AUTO_APPROVE":
-        why = [f"{len(passes)} checks passed."] + [f"Note: {w['message']}" for w in warns[:3]]
+        why = [f"{len(passes)} checks passed."] + [w["message"] if w["message"].startswith("Warning") else f"Note: {w['message']}" for w in warns[:3]]
         text = ("Every required field is grounded in the document, the vendor is approved, the PO match is unambiguous, amounts "
                 "and tax reconcile and no duplicate or bank-detail risk was found. " + " ".join(why) + " No payment has been initiated.")
     else:
         top = "; ".join(LABELS.get(r, r) for r in reasons[:3])
         text = f"Decision: {dec} because {top}. " + " ".join(f"- {f['message']}" for f in fails[:4]) + " No payment has been initiated."
     checklist = [d["next_action"]] if dec != "AUTO_APPROVE" else ["Forward to the next approval step per delegation of authority."]
+    if any(f.get("rule_id") == "TAX_NOT_STATED" for f in ctx["findings"]):
+        checklist.append("Warning: tax is not stated on the invoice - request a tax invoice showing the tax (needed for input tax credit).")
     if "GROUP_DISCREPANCY" in reasons or "GROUP_INCOMPLETE" in reasons:
         checklist.append("Open the PO Groups page to see ordered vs invoiced quantities per line.")
     if "BANK_MISMATCH_HIGH_RISK" in reasons:
@@ -98,7 +110,8 @@ def template(ctx) -> dict:
     vm = None
     inv_no = ctx.get("invoice_number") or "your recent invoice"
     if any(r in reasons for r in ("MISSING_REQUIRED_FIELD", "AMBIGUOUS_DATE", "AMBIGUOUS_NUMBER", "AMBIGUOUS_CURRENCY", "PO_AMBIGUOUS",
-                                  "PO_NO_CANDIDATE", "GROUP_DISCREPANCY", "DUP_POSSIBLE_REISSUE", "TOTAL_RECONCILIATION", "TAX_RATE_CHECK")):
+                                  "PO_NO_CANDIDATE", "GROUP_DISCREPANCY", "DUP_POSSIBLE_REISSUE", "TOTAL_RECONCILIATION", "TAX_RATE_CHECK",
+                                  "TAX_RATE_MISMATCH", "TAX_NOT_CHARGED", "TAX_TOTAL_VS_PO", "TAX_TOTAL_CONSISTENCY", "TAX_TOTAL_CHECK")):
         asks = []
         if "MISSING_REQUIRED_FIELD" in reasons:
             asks.append("a corrected invoice that shows the invoice number")
@@ -110,7 +123,8 @@ def template(ctx) -> dict:
             asks.append("a corrected invoice or credit note so the invoices for " + (d.get("selected_po") or "the PO") + " match the ordered quantities and prices")
         if "DUP_POSSIBLE_REISSUE" in reasons:
             asks.append("confirmation of which version of this invoice is valid (and a credit note for the other)")
-        if "TOTAL_RECONCILIATION" in reasons or "TAX_RATE_CHECK" in reasons:
+        if any(r in reasons for r in ("TOTAL_RECONCILIATION", "TAX_RATE_CHECK", "TAX_RATE_MISMATCH", "TAX_NOT_CHARGED",
+                                      "TAX_TOTAL_VS_PO", "TAX_TOTAL_CONSISTENCY", "TAX_TOTAL_CHECK")):
             asks.append("a corrected invoice - the totals/tax do not reconcile")
         vm = (f"Dear {ctx.get('vendor_name') or 'Vendor'},\n\nThank you for invoice {inv_no}. Before we can process it we need "
               + "; ".join(asks) + ".\n\nKind regards,\nAccounts Payable (draft - not sent)")

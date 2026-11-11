@@ -1,4 +1,7 @@
-"""Stage 7a - vendor master checks, PO matching hierarchy, invoice-line to PO-line mapping."""
+"""Stage 7a - vendor master checks, PO matching hierarchy, invoice-line to PO-line mapping.
+
+Tax checks against the PO (per item, per PO line rate) live in src/pipeline/tax.py.
+"""
 from __future__ import annotations
 
 import re
@@ -9,8 +12,10 @@ from rapidfuzz import fuzz
 
 from src import storage
 from src.master_data import policy, purchase_orders, tol, vendors
-from src.models import ExtractedInvoice, PurchaseOrder, ValidationFinding, Vendor
+from src.models import ExtractedInvoice, PurchaseOrder, ValidationFinding
+from src.pipeline import tax
 from src.pipeline.normalization import mask_account, norm_account, normalize_text, parse_date
+from src.pipeline.verification import compute
 
 Q = Decimal("0.01")
 
@@ -115,16 +120,26 @@ def map_lines(inv: ExtractedInvoice, po: PurchaseOrder) -> dict:
             unmapped.append({"line_no": ln.line_no, "description": ln.description, "item_code": ln.item_code,
                              "net_line_total": ln.net_line_total})
             continue
+        rate = po.line_rate(target)
+        if inv.tax_inclusive and po.mixed_rates:
+            # tax-inclusive prices with several tax rates: back out each line's tax at ITS PO line rate, not a blended rate
+            if ln.unit_price:
+                ln.net_unit_price = str((Decimal(ln.unit_price) / (1 + rate)).quantize(Q))
+            if ln.line_total:
+                ln.net_line_total = str((Decimal(ln.line_total) / (1 + rate)).quantize(Q))
         price_ok = ln.net_unit_price is not None and abs(Decimal(ln.net_unit_price) - target.unit_price) <= \
             target.unit_price * tol("line_unit_price_pct") / 100 + Decimal("0.005")
         mapped.append({"line_no": ln.line_no, "po_line_no": target.line_no, "item_code": target.item_code, "match_by": how,
                        "quantity": ln.quantity, "uom": ln.uom, "po_uom": target.uom, "unit_price": ln.net_unit_price,
-                       "po_unit_price": str(target.unit_price), "price_ok": price_ok, "net_line_total": ln.net_line_total})
+                       "po_unit_price": str(target.unit_price), "price_ok": price_ok, "net_line_total": ln.net_line_total,
+                       "tax_rate": str(rate)})
     return {"mode": "LINES", "mapped": mapped, "unmapped": unmapped}
 
 
 # ------------------------------------------------------------------ PO matching
 def _candidate_score(inv: ExtractedInvoice, calc: dict, po: PurchaseOrder) -> dict:
+    if inv.tax_inclusive and inv.dec("tax_total") is None and inv.dec("grand_total") is not None:
+        calc = compute(inv, po.effective_rate)   # no tax printed: compare net prices at this candidate's rate
     m = map_lines(inv, po)
     rem = remaining(po)
     n = max(1, len(inv.lines))
@@ -206,8 +221,13 @@ def match_po(inv: ExtractedInvoice, vendor_id: Optional[str], calc: dict) -> dic
     if result["selected_po"]:
         po = pos[result["selected_po"]]
         lm = map_lines(inv, po)
+        tax_findings = []
+        if inv.dec("tax_total") is None and inv.dec("grand_total") is not None:
+            # no tax amount on the invoice: embedded in the prices, not charged, or wrong - decided against the PO
+            lm, tax_findings = tax.resolve_missing_tax(inv, po, lm, calc, lambda: map_lines(inv, po))
         result["line_mapping"] = lm
         result["billing_type"] = po.billing_type
+        findings.extend(tax_findings)
         findings.extend(line_findings(inv, po, lm, calc))
     return result
 
@@ -235,14 +255,7 @@ def line_findings(inv: ExtractedInvoice, po: PurchaseOrder, lm: dict, calc: dict
                       + (" (evaluated at PO-group level)" if group_level else "")))
     elif lm["mapped"]:
         out.append(_f("LINE_PRICE_MATCH", "INFO", "PASS", f"{len(lm['mapped'])} line(s) mapped to {po.po_number} at PO unit prices."))
-    # tax rate vs PO
-    net = Decimal(calc["net_subtotal"]) if calc.get("net_subtotal") else None
-    if net is not None:
-        exp_tax = (net * po.tax_rate).quantize(Q)
-        tax = Decimal(calc["tax_total"])
-        ok = abs(exp_tax - tax) <= tol("tax_abs")
-        out.append(_f("TAX_RATE_CHECK", "ERROR" if not ok else "INFO", "PASS" if ok else "FAIL",
-                      f"Tax {tax} vs PO rate {po.tax_rate * 100:.0f}% of {net} = {exp_tax}."))
+    out.extend(tax.check(inv, po, lm, calc))   # item-by-item tax vs PO line rates (src/pipeline/tax.py)
     if po.billing_type == "BLANKET":
         rem = remaining(po)
         over = [m for m in lm["mapped"] if m["quantity"] and Decimal(m["quantity"]) > rem.get(m["item_code"], 0)]

@@ -126,3 +126,31 @@ def test_llm_cannot_flip_tax_treatment_against_printed_arithmetic():
     assert merged.tax_inclusive is False
     assert any(f["rule_id"] == "TAX_TREATMENT_CHECK" for f in findings)
     assert not any(f["status"] == "FAIL" for f in findings)
+
+
+def test_technical_hold_is_reprocessed_not_rejected_as_duplicate(fresh_db):
+    """An invoice held only because the LLM was unavailable is retried on re-upload, not rejected as a duplicate."""
+    from src import storage
+    first = one("01_happy_apex_itemized.pdf", MockProvider(fail_with="NETWORK_OR_TIMEOUT"))
+    assert first["decision"]["decision"] == "HOLD_FOR_REVIEW" and "AGENT_UNAVAILABLE" in first["decision"]["reason_codes"]
+    second = process_batch(load("01_happy_apex_itemized.pdf"), mode="deterministic_demo")["documents"][0]
+    assert second["decision"]["decision"] == "AUTO_APPROVE"
+    assert "REPROCESSED_AFTER_TECHNICAL_FAILURE" in second["decision"]["reason_codes"]
+    assert second["supersedes"] == [first["document_id"]] and storage.is_superseded(first["document_id"])
+    assert first["document_id"] not in {r["document_id"] for r in storage.dashboard_rows()}   # counted once
+    assert any(e["event_type"] == "SUPERSEDED" for e in storage.audit_for(first["document_id"]))  # kept for audit
+    # once genuinely assessed, a further copy IS a duplicate
+    third = process_batch(load("01_happy_apex_itemized.pdf"), mode="deterministic_demo")["documents"][0]
+    assert third["decision"]["decision"] == "REJECT_DUPLICATE"
+
+
+def test_technical_hold_in_split_group_is_replaced_on_retry(fresh_db):
+    from src import storage
+    a, b, c = "14_split_ok_A.pdf", "15_split_ok_B.pdf", "16_split_ok_C.pdf"
+    process_batch(load(a, c), mode="deterministic_demo")
+    failed = process_batch(load(b), mode="live_llm", provider=MockProvider(fail_with="DAILY_QUOTA_EXHAUSTED"))["documents"][0]
+    assert failed["decision"]["decision"] == "HOLD_FOR_REVIEW"
+    retry = process_batch(load(b), mode="deterministic_demo")["documents"][0]
+    assert retry["decision"]["decision"] == "AUTO_APPROVE" and storage.is_superseded(failed["document_id"])
+    g = storage.group_for_po("PO-2001", open_only=False)
+    assert g["status"] == "ACCEPTED" and failed["document_id"] not in g["members"] and len(g["members"]) == 3

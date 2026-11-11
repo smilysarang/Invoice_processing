@@ -34,7 +34,8 @@ You receive an extracted invoice summary plus READ-ONLY results of the tools loo
   this vendor, or exactly one candidate is clearly supported, select it - even if amounts, prices or quantities differ.
   Report such differences in questions_for_human instead; deterministic code reconciles amounts, tax and split invoices.
 - If two or more POs remain plausible, set ambiguous=true, selected_po=null, and list the questions a human must answer.
-- Amounts: line prices are NET of tax; grand_total_incl_tax = invoice_net_subtotal + tax_total (tax rate per the PO).
+- Amounts: line prices are NET of tax; grand_total_incl_tax = invoice_net_subtotal + tax_total. Each PO line has its own
+  tax rate (one PO can mix rates, e.g. 5% and 18% GST), so the tax is the sum of line net x that line's rate.
   A ONE_TIME PO may be billed in several partial invoices that code reconciles as a group, so a partial amount is normal.
 - You cannot create or edit vendors or POs, change PO values, or waive tolerances. You do not approve payments.
 {UNTRUSTED_NOTE}"""
@@ -70,9 +71,10 @@ class VendorPOAgent(Agent):
             po = pos.get(n)
             if not po:
                 return {"po_number": n}
-            return {"po_number": n, "billing_type": po.billing_type, "tax_rate": str(po.tax_rate), "currency": po.currency,
-                    "po_net_subtotal": str(po.subtotal), "po_total_incl_tax": str(po.grand_total),
-                    "lines": [{"item_code": l.item_code, "qty": str(l.quantity), "unit_price": str(l.unit_price)} for l in po.lines]}
+            return {"po_number": n, "billing_type": po.billing_type, "tax_rates": [str(r) for r in po.rates], "currency": po.currency,
+                    "po_net_subtotal": str(po.subtotal), "po_tax_total": str(po.tax_total), "po_total_incl_tax": str(po.grand_total),
+                    "lines": [{"item_code": l.item_code, "qty": str(l.quantity), "unit_price": str(l.unit_price),
+                               "tax_rate": str(po.line_rate(l))} for l in po.lines]}
         ids = [c["po_number"] for c in pm["candidates"]] or ([pm["selected_po"]] if pm["selected_po"] else [])
         vendor = dict(vm["vendor"] or {})
         if vendor.get("bank_account"):

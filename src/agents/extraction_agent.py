@@ -35,7 +35,10 @@ class LLMLine(BaseModel):
     quantity_raw: Optional[str] = Field(None, description="quantity exactly as printed (Qty / Menge), e.g. '3'")
     uom: Optional[str] = Field(None, description="unit of measure as printed (UOM / Unit / Einheit), e.g. 'NOS', 'Stk'")
     unit_price_raw: Optional[str] = Field(None, description="unit price exactly as printed (Rate / Unit Price / Einzelpreis), e.g. '1.234,56'")
-    line_total_raw: Optional[str] = Field(None, description="line amount exactly as printed (Amount / Gesamt), e.g. '3.703,68'")
+    line_total_raw: Optional[str] = Field(None, description="line amount exactly as printed (Amount / Gesamt), e.g. '3.703,68'. If the "
+                                          "line prints both a taxable value and a total incl. tax, use the taxable value (before tax)")
+    tax_rate_raw: Optional[str] = Field(None, description="per-line tax rate if the line prints one (e.g. '5%'); else omit")
+    tax_amount_raw: Optional[str] = Field(None, description="per-line tax amount if the line prints one; else omit")
     page: Optional[int] = None
 
 
@@ -145,8 +148,11 @@ class ExtractionAgent(Agent):
         for i, l in enumerate(parsed.line_items, 1):
             q, up, lt = _amount(l.quantity_raw, ns), _amount(l.unit_price_raw, ns), _amount(l.line_total_raw, ns)
             qty = str(int(Decimal(q.value))) if q.value and Decimal(q.value) == Decimal(q.value).to_integral() else q.value
+            lr = re.search(r"\d+(?:[.,]\d+)?", l.tax_rate_raw or "")
             llm.lines.append(InvoiceLine(line_no=i, description=l.description, item_code=(l.item_code or None), quantity=qty, uom=l.uom,
-                                         unit_price=up.value, line_total=lt.value, raw_text=" ".join(filter(None, [l.item_code, l.description, l.quantity_raw, l.uom, l.unit_price_raw, l.line_total_raw])),
+                                         unit_price=up.value, line_total=lt.value,
+                                         tax_rate=lr.group(0).replace(",", ".") if lr else None,
+                                         tax_amount=_amount(l.tax_amount_raw, ns).value if l.tax_amount_raw else None, raw_text=" ".join(filter(None, [l.item_code, l.description, l.quantity_raw, l.uom, l.unit_price_raw, l.line_total_raw])),
                                          source_page=l.page, method="llm"))
         ground(llm, ctx["pages"])
         merged, findings, comparison = merge(rules, llm)
