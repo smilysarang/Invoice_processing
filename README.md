@@ -12,6 +12,8 @@ An AP decision-support process. It takes vendor invoice PDFs (clean, scanned, Ge
 
 **Design principle: agents investigate, deterministic code decides.** Four LLM agents read documents, investigate matches and risks, and explain results. Deterministic code owns money arithmetic (Decimal), tolerances, duplicate keys, PO consumption and the final policy. An agent can make a decision *more* conservative. It can never approve, clear a blocking rule, or change how an amount is interpreted.
 
+**Documentation:** [Business overview](docs/BUSINESS_OVERVIEW.md) · [Technical design](docs/TECHNICAL_DESIGN.md) · [Assumptions](ASSUMPTIONS.md)
+
 ---
 
 ## Quick start (Windows / macOS / Linux, Python 3.11+)
