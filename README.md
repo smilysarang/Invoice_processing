@@ -1,7 +1,5 @@
 # Invoice → Decision (PS-1 · Finance / AP)
 
-**Live demo:** https://invoicetodec.streamlit.app/ - the four LLM agents run live (Groq). Live mode needs the access code shared in the submission; **Deterministic demo** in the sidebar runs the same pipeline without LLM calls and is open to everyone.
-
 An AP decision-support process. It takes vendor invoice PDFs (clean, scanned, German, bundled, split across several invoices) and produces a **clear, reasoned decision** for each one, with every step visible:
 
 | Decision | Meaning |
